@@ -1,0 +1,11 @@
+title: infini-gram
+
+show_excerpts: true
+
+header_pages:
+  - index.md
+
+theme: minima
+
+plugins:
+  - jekyll-redirect-from
