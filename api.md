@@ -1,27 +1,18 @@
 ---
-layout: home
+layout: page
+title: API Doc
 ---
 
-# Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens
-
-[Jiacheng (Gary) Liu](https://liujch1998.github.io), [Sewon Min](https://shmsw25.github.io), [Luke Zettlemoyer](https://www.cs.washington.edu/people/faculty/lsz/), [Yejin Choi](https://homes.cs.washington.edu/~yejin/), [Hannaneh Hajishirzi](https://homes.cs.washington.edu/~hannaneh/)
-
-University of Washington, Allen Institute for AI
-
-[[Arxiv](https://arxiv.org/pdf/2401.17377.pdf)]
-[[Demo](https://hf.co/spaces/liujch1998/infini-gram)]
-[Code [(train)](https://github.com/liujch1998/infini-gram-t) [(inference)](https://github.com/liujch1998/infini-gram-i)]
-[Pre-built indexes (coming soon)]
-
----
-
-## API Documentation
+# API Documentation
 
 The infini-gram API endpoint is `http://infini-gram.io/api`.
 Please make regular HTTP POST requests.
 In your request, please include a JSON payload, and the response will also contain a JSON payload.
 
-### Overview
+---
+<br/>
+
+## Overview
 
 **Input parameters:**
 
@@ -51,7 +42,10 @@ If the query was successful, the response JSON dict will contain the following f
 In addition, the response JSON dict will contain results specific to the query type.
 Please see the specific query type below for more details.
 
-### 1. Count an n-gram (`count`)
+---
+<br/>
+
+## 1. Count an n-gram (`count`)
 
 This query type counts the number of times the query string appears in the corpus.
 If the query is an empty string, the total number of tokens in the corpus will be returned.
@@ -79,7 +73,10 @@ For example, querying `a` will not give you the count of the letter `a`, but rat
 | `latency` | see overview | see overview |
 | `count` | The count of the query n-gram | A non-negative integer |
 
-### 2. Prob of the last token (`prob`)
+---
+<br/>
+
+## 2. Prob of the last token (`prob`)
 
 This query type computes the n-gram LM probability of the last token of the query conditioning on all preceding tokens.
 It treats your query as an n-gram, counts the full n-gram and also the (n-1)-gram that excludes the last token, and takes the division of the two counts.
@@ -101,11 +98,14 @@ If you query `natural language processing`, the API returns P(`processing` | `na
 | --- | --- | --- |
 | `tokenized` | see overview | see overview |
 | `latency` | see overview | see overview |
-| `prob` | The n-gram LM probability | A real number in range [0, 1], or NaN |
+| `prob` | The n-gram LM probability | A real number in range [0, 1], or -1.0 (denoting NaN) |
 | `prompt_cnt` | The count of the n-1 gram | A non-negative integer |
 | `cont_cnt` | The count of the n-gram | A non-negative integer |
 
-### 3. Next-token distribution (`ntd`)
+---
+<br/>
+
+## 3. Next-token distribution (`ntd`)
 
 This query type treats your query as the (n-1)-gram as in query type 2, and returns the full distribution of the next token.
 
@@ -131,7 +131,10 @@ If the query appears more than 1000 times in the corpus, the distribution return
 | `latency` | see overview | see overview |
 | `ntd` | The next-token distribution | A dict that maps tokens to probabilities. (Each key is a string containing the token and the frequencies, if you only want the token you might need to do some parsing) |
 
-### 4. ∞-gram prob (`infgram_prob`)
+---
+<br/>
+
+## 4. ∞-gram prob (`infgram_prob`)
 
 This query type computes the ∞-gram LM probability of the last token of the query conditioning on all preceding tokens.
 In contrast to n-gram, the ∞-gram LM uses the longest possible (n-1)-gram suffix as context, as long as the count of this (n-1)-gram is non-zero.
@@ -154,12 +157,15 @@ If you query `I love natural language processing`, and `natural language` appear
 | --- | --- | --- |
 | `tokenized` | see overview | see overview |
 | `latency` | see overview | see overview |
-| `prob` | The n-gram LM probability | A real number in range [0, 1], or NaN |
+| `prob` | The n-gram LM probability | A real number in range [0, 1] |
 | `prompt_cnt` | The count of the n-1 gram | A non-negative integer |
 | `cont_cnt` | The count of the n-gram | A non-negative integer |
 | `longest_suffix` | The longest suffix used to compute the ∞-gram probability | A string (may be empty) |
 
-### 5. ∞-gram next-token distribution (`infgram_ntd`)
+---
+<br/>
+
+## 5. ∞-gram next-token distribution (`infgram_ntd`)
 
 This query type computes the full next-token distribution according to the ∞-gram LM.
 It uses the longest possible (n-1)-gram suffix of the query as context, as long as the count of this (n-1)-gram is non-zero.

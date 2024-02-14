@@ -1,11 +1,10 @@
 title: infini-gram
-
-show_excerpts: true
+author:
+  name: Jiacheng (Gary) Liu
+  email: liujc [at] cs.washington.edu
 
 header_pages:
-  - index.md
+  - about.md
+  - api.md
 
 theme: minima
-
-plugins:
-  - jekyll-redirect-from
