@@ -11,5 +11,6 @@ University of Washington, Allen Institute for AI
 
 [[Arxiv](https://arxiv.org/pdf/2401.17377.pdf)]
 [[Demo](https://hf.co/spaces/liujch1998/infini-gram)]
+[[API](/api_doc.md)]
 [Code [(train)](https://github.com/liujch1998/infini-gram-t) [(inference)](https://github.com/liujch1998/infini-gram-i)]
 [Pre-built indexes (coming soon)]

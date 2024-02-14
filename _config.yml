@@ -4,7 +4,7 @@ author:
   email: liujc [at] cs.washington.edu
 
 header_pages:
-  - about.md
-  - api.md
+  - index.md
+  - api_doc.md
 
 theme: minima
