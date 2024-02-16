@@ -7,6 +7,12 @@ The infini-gram API endpoint is `https://api.infini-gram.io/`.
 Please make regular HTTP POST requests.
 In your request, please include a JSON payload, and the response will also contain a JSON payload.
 
+Most queries are processed within 10s of milliseconds.
+You should receive the response within a fraction of a second.
+If you are experiencing longer latencies, it might be due to network delays.
+
+**Please do not issue concurrent requests, and kindly wait 0.1 seconds between receiving the response and sending a new request. If our server is overloaded you might receive an error.**
+
 ---
 <br/>
 
@@ -188,3 +194,47 @@ If you query `I love natural language`, and `natural language` appears in the co
 | `latency` | see overview | see overview |
 | `ntd` | The next-token distribution | A dict that maps tokens to probabilities. (Each key is a string containing the token and the frequencies, if you only want the token you might need to do some parsing) |
 | `longest_suffix` | The longest suffix used to compute the ∞-gram probability | A string (may be empty) |
+
+---
+<br/>
+
+## 6. Search documents (`search_docs`)
+
+This query type returns a few random documents in the corpus that match your query.
+
+You can simply enter a string, in which case the documents returned would contain the string.
+You can also connect multiple strings with the AND/OR operators, in the [CNF format](https://en.wikipedia.org/wiki/Conjunctive_normal_form), in which case the returned documents contains strings such that it satisfies this logical constraint.
+
+**Examples:**
+
+1. If you query `natural language processing`, the documents returned would contain the string `natural language processing`.
+2. If you query `natural language processing AND deep learning`, the documents returned would contain both `natural language processing` and `deep learning`.
+3. If you query `natural language processing OR artificial intelligence AND deep learning OR machine learning`, the documents returned would contain at least one of `natural language processing` / `artificial intelligence`, and also at least one of `deep learning` / `machine learning`.
+
+If you want another batch of random documents, simply submit the same query again :)
+
+**Notes:**
+
+* When you write a query in CNF, note that **OR has higher precedence than AND** (which is contrary to conventions in boolean algebra).
+* If the document is too long, it will be truncated to 5000 tokens.
+* We can only include documents where all clauses are separated by no more than 100 tokens.
+* If you query for two or more clauses, and a clause has more than 50000 matches, we will estimate the count from a random subset of all documents containing that clause. This might cause a zero count on conjuction of some simple clauses (e.g., birds AND oil).
+* The number of found documents may contain duplicates (e.g., if a document contains your query term twice, it may be counted twice).
+
+**Input parameters:**
+
+| Key | Description | Acceptable Values |
+| --- | --- | --- |
+| `corpus` | see overview | see overview |
+| `query_type` | see overview | `search_docs` |
+| `query` | The search query | A non-empty string, or several such strings connected with the AND/OR operators |
+| `maxnum` | The max number of documents to return | An integer in range [1, 10] |
+
+**Output parameters:**
+
+| Key | Description | Value Range |
+| --- | --- | --- |
+| `tokenized` | see overview | see overview |
+| `latency` | see overview | see overview |
+| `docs` | The list of documents that match the query | A list of Documents, where each Document is a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches (if this span does not match any clause, this element is NULL) |
+| `message` | A message describing the total number of matched documents | A string |
