@@ -9,7 +9,7 @@ title: Home
 
 University of Washington, Allen Institute for AI
 
-[[Arxiv](https://arxiv.org/pdf/2401.17377.pdf)]
+[[Paper](https://arxiv.org/pdf/2401.17377.pdf)]
 [[Demo](https://hf.co/spaces/liujch1998/infini-gram)]
 [[API](/api_doc.md)]
 [[Code](https://github.com/liujch1998/infini-gram)]
