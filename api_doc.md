@@ -1,6 +1,6 @@
 ---
 layout: page
-title: API Doc
+title: API Documentation
 ---
 
 The infini-gram API endpoint is `https://api.infini-gram.io/`.
@@ -12,6 +12,16 @@ You should receive the response within a fraction of a second.
 If you are experiencing longer latencies, it might be due to network delays.
 
 **Please do not issue concurrent requests, and kindly wait 0.1 seconds between receiving the response and sending a new request. If our server is overloaded you might receive an error.**
+
+If you find this tool useful, please kindly cite our paper:
+```bibtex
+@article{Liu2024InfiniGram,
+  title={Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens},
+  author={Liu, Jiacheng and Min, Sewon and Zettlemoyer, Luke and Choi, Yejin and Hajishirzi, Hannaneh},
+  journal={arXiv preprint arXiv:2401.17377},
+  year={2024}
+}
+```
 
 ---
 <br/>

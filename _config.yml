@@ -5,5 +5,8 @@ email: liujc [at] cs.washington.edu
 header_pages:
   - index.md
   - api_doc.md
+  - paper.md
+  - demo.md
+  - code.md
 
 theme: minima
