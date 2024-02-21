@@ -3,7 +3,7 @@ layout: page
 title: API
 ---
 
-# API Documentation
+## API Documentation
 
 The infini-gram API endpoint is `https://api.infini-gram.io/`.
 Please make regular HTTP POST requests.

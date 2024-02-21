@@ -10,3 +10,6 @@ header_pages:
   - code.md
 
 theme: minima
+
+plugins:
+  - jekyll-redirect-from
