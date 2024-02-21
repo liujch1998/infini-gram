@@ -3,7 +3,7 @@ layout: page
 title: infini-gram
 ---
 
-## Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens
+# Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens
 
 [Jiacheng (Gary) Liu](https://liujch1998.github.io), [Sewon Min](https://shmsw25.github.io), [Luke Zettlemoyer](https://www.cs.washington.edu/people/faculty/lsz/), [Yejin Choi](https://homes.cs.washington.edu/~yejin/), [Hannaneh Hajishirzi](https://homes.cs.washington.edu/~hannaneh/)
 
@@ -15,7 +15,7 @@ University of Washington, Allen Institute for AI
 [[Code](https://github.com/liujch1998/infini-gram)]
 [Pre-built indexes (coming soon)]
 
-### Citation
+## Citation
 
 ```bibtex
 @article{Liu2024InfiniGram,
