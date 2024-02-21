@@ -20,14 +20,18 @@ This model contains n-gram counts for about 1 quadrillion (or 1 thousand trillio
 **Infini-gram** is an engine that efficiently processes n-gram queries with **unbounded n** and **trillion-token massive corpora**.
 It takes merely 20 milliseconds to count an arbitrarily long n-gram in RedPajama (1.4T tokens), while also retrieving all of its occurrence positions in the corpus.
 
-<iframe width="560" height="315" src="https://youtu.be/vImE5y9uvO0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<p align="center">
+  <img src="assets/Screenshot 2024-02-20 at 21.20.11.png" style="width: 100%;" />
+</p>
 
 Beyond counting n-grams, infini-gram offers more functionalities.
 You can compute n-gram LM probabilities and next-token distributions, which can be handy for text decoding.
 You can also search for documents that contain an n-gram term, one of multiple n-gram terms, all of multiple n-gram terms, or a combination of these (see [CNF expressions](https://en.wikipedia.org/wiki/Conjunctive_normal_form)).
 To explore these functionalities, check out our [HF demo](https://hf.co/spaces/liujch1998/infini-gram).
 
-
+<p align="center">
+  <img src="assets/Screenshot 2024-02-20 at 21.21.06.png" style="width: 100%;" />
+</p>
 
 If you'd like to explore infini-gram or use in small volume, please check out our [HF demo](https://hf.co/spaces/liujch1998/infini-gram).
 If you'd like to programmatically query infini-gram, we offer a free and easy-to-use API endpoint, please check out the [API documentation](/api_doc.md).
