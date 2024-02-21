@@ -11,17 +11,20 @@ title: Home
 
 <p align="center">[<a href="https://arxiv.org/pdf/2401.17377.pdf">Paper</a>] [<a href="https://hf.co/spaces/liujch1998/infini-gram">Demo</a>] [<a href="/api_doc.md">API</a>] [<a href="https://github.com/liujch1998/infini-gram">Code</a>] [Pre-built indexes (coming soon)]</p>
 
+---
+<br/>
+
 It’s year 2024, and n-gram LMs are making a comeback!!
 
 We built an n-gram LM with the RedPajama dataset, which contains 1.4 trillion tokens.
 The n in this n-gram LM can be unbounded and arbitrarily large.
-This model contains n-gram counts for about 1 quadrillion (or 1 thousand trillion, or 10^15) unique n-grams, which makes it the biggest n-gram LM ever built to date.
+This model contains n-gram counts for about 1 quadrillion (or 1 thousand trillion, or 10^15) unique n-grams, which makes it **the biggest n-gram LM ever built to date**.
 
 **Infini-gram** is an engine that efficiently processes n-gram queries with **unbounded n** and **trillion-token massive corpora**.
 It takes merely 20 milliseconds to count an arbitrarily long n-gram in RedPajama (1.4T tokens), while also retrieving all of its occurrence positions in the corpus.
 
 <p align="center">
-  <img src="assets/Screenshot 2024-02-20 at 21.20.11.png" style="width: 100%;" />
+  <img src="assets/Screenshot 2024-02-20 at 21.34.16.png" style="width: 100%;" />
 </p>
 
 Beyond counting n-grams, infini-gram offers more functionalities.
@@ -35,6 +38,9 @@ To explore these functionalities, check out our [HF demo](https://hf.co/spaces/l
 
 If you'd like to explore infini-gram or use in small volume, please check out our [HF demo](https://hf.co/spaces/liujch1998/infini-gram).
 If you'd like to programmatically query infini-gram, we offer a free and easy-to-use API endpoint, please check out the [API documentation](/api_doc.md).
+
+---
+<br/>
 
 <h2 align="center">What can I use infini-gram for?</h2>
 
@@ -59,6 +65,9 @@ Beyond these, we envision that infini-gram can be useful in many other applicati
 
 Below we show a few results from our paper, which uses infini-gram for text analysis and language modeling.
 
+---
+<br/>
+
 <h2 align="center">Why do we need unbounded n?</h2>
 
 Using larger n improves the predictive power of n-gram LMs. Existing n-gram LMs are mostly built with n<=5, which limits their capability to predict the next token (shown in image below). If we increase to n=16, we still get a non-zero n-gram count in RedPajama, but now the model makes a correct prediction. This is why we generalize n-gram LMs to unbounded n, i.e., an ∞-gram LM. ∞-gram uses the longest context possible (right before the count becomes zero), and our infini-gram engine perfectly supports this.
@@ -66,6 +75,9 @@ Using larger n improves the predictive power of n-gram LMs. Existing n-gram LMs 
 <p align="center">
   <img src="assets/teaser.png" style="width: 80%;" />
 </p>
+
+---
+<br/>
 
 <h2 align="center">Analyzing human-written text</h2>
 
@@ -78,6 +90,9 @@ Using the ∞-gram framework and infini-gram engine, we gain new insights into h
   <img src="assets/infinigram-sparse.png" style="width: 48%;" />
 </p>
 
+---
+<br/>
+
 <h2 align="center">Interpolating ∞-gram LM with neural LMs</h2>
 
 Interpolating with ∞-gram reduces the perplexity of neural LLMs by up to 73%, and this works even when the neural LLM is Llama-2-70B! ∞-gram also outperforms kNN-LM and RIC-LM as retrieval-augmentation strategy used by the SILO model (Min et al., 2023).
@@ -87,15 +102,17 @@ Interpolating with ∞-gram reduces the perplexity of neural LLMs by up to 73%, 
   <img src="assets/Screenshot 2024-01-26 at 00.36.45.png" style="width: 48.5%;" />
 </p>
 
+---
+<br/>
+
 <h2 align="center">What's happening behind the infini-gram engine?</h2>
 
-The infini-gram index is a data structure called “suffix array”, which stores the ranking of all suffixes of a byte array. In our use case, the byte array is the concatenation of all (tokenized) documents in the corpora.
+The infini-gram index is a data structure called "suffix array", which stores the ranking of all suffixes of a byte array. In our use case, the byte array is the concatenation of all (tokenized) documents in the corpora.
 
 Here’s an illustration of how suffix array works:
 <p align="center">
   <img src="assets/sa.png" style="width: 80%;" />
 </p>
-
 
 Here’s an illustration of the suffix array for a trillion-token corpus:
 <p align="center">
@@ -112,6 +129,9 @@ Inference is lightning fast! On RedPajama, n-gram counting is 20 milliseconds (r
 
 Also, inference requires very little compute (CPU, RAM), since the index can stay on disk.
 And above all, infini-gram requires **0 GPU** for both training and inference!! 🙈🙈
+
+---
+<br/>
 
 ## Citation
 
