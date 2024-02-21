@@ -1,6 +1,6 @@
 ---
 layout: page
-title: API Documentation
+title: API
 ---
 
 # API Documentation

@@ -1,6 +1,6 @@
 ---
 layout: page
-title: infini-gram
+title: Home
 ---
 
 # Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens
@@ -11,7 +11,7 @@ University of Washington, Allen Institute for AI
 
 [[Arxiv](https://arxiv.org/pdf/2401.17377.pdf)]
 [[Demo](https://hf.co/spaces/liujch1998/infini-gram)]
-[[API Documentation](/api_doc.md)]
+[[API](/api_doc.md)]
 [[Code](https://github.com/liujch1998/infini-gram)]
 [Pre-built indexes (coming soon)]
 
