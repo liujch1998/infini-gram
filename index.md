@@ -3,19 +3,23 @@ layout: page
 title: Home
 ---
 
-## Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens
+<h1 align="center">Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens</h1>
 
-[Jiacheng (Gary) Liu](https://liujch1998.github.io), [Sewon Min](https://shmsw25.github.io), [Luke Zettlemoyer](https://www.cs.washington.edu/people/faculty/lsz/), [Yejin Choi](https://homes.cs.washington.edu/~yejin/), [Hannaneh Hajishirzi](https://homes.cs.washington.edu/~hannaneh/)
+<p align="center"><a href="https://liujch1998.github.io">Jiacheng (Gary) Liu</a><sup>1</sup>, <a href="https://shmsw25.github.io">Sewon Min</a><sup>1</sup>, <a href="https://www.cs.washington.edu/people/faculty/lsz/">Luke Zettlemoyer</a><sup>1</sup>, <a href="https://homes.cs.washington.edu/~yejin/">Yejin Choi</a><sup>1,2</sup>, <a href="https://homes.cs.washington.edu/~hannaneh/">Hannaneh Hajishirzi</a><sup>1,2</sup></p>
 
-University of Washington, Allen Institute for AI
+<p align="center"><sup>1</sup>University of Washington, <sup>2</sup>Allen Institute for AI</p>
 
-[[Paper](https://arxiv.org/pdf/2401.17377.pdf)]
-[[Demo](https://hf.co/spaces/liujch1998/infini-gram)]
-[[API](/api_doc.md)]
-[[Code](https://github.com/liujch1998/infini-gram)]
-[Pre-built indexes (coming soon)]
+<p align="center">[<a href="https://arxiv.org/pdf/2401.17377.pdf">Paper</a>] [<a href="https://hf.co/spaces/liujch1998/infini-gram">Demo</a>] [<a href="/api_doc.md">API</a>] [<a href="https://github.com/liujch1998/infini-gram">Code</a>] [Pre-built indexes (coming soon)]</p>
 
-## Citation
+<h2 align="center">News</h2>
+
+
+
+<h2 align="center">Abstract</h2>
+
+
+
+<h2 align="center">Citation</h2>
 
 ```bibtex
 @article{Liu2024InfiniGram,
