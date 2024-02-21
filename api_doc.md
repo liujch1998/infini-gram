@@ -15,7 +15,7 @@ If you are experiencing longer latencies, it might be due to network delays.
 
 **Please do not issue concurrent requests, and kindly wait 0.1 seconds between receiving the response and sending a new request. If our server is overloaded you might receive an error.**
 
-If you find this tool useful, please kindly cite our paper:
+If you find infini-gram useful, please kindly cite our paper:
 ```bibtex
 @article{Liu2024InfiniGram,
   title={Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens},
