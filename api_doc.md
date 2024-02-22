@@ -36,7 +36,7 @@ In general, the request JSON payload should be a dict containing the following f
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `corpus` | The corpus to search in (and the tokenizer to use) | `v4_pileval_gpt2`, `v4_pileval_llama`, `v4_piletrain_llama`, `v4_rpj_llama_s4`, `v4_dolmasample_olmo` |
+| `corpus` | The corpus to search in (and the tokenizer to use) | `v4_rpj_llama_s4`, `v4_piletrain_llama`, `v4_c4train_llama`, `v4_pileval_llama`, `v4_pileval_gpt2`, `v4_dolmasample_olmo` |
 | `query_type` | One of the six supported query types | `count`, `prob`, `ntd`, `infgram_prob`, `infgram_ntd`, `search_docs` |
 | `query` | The query (semantic depends on query type) | Any string (empty may be OK depending on query type) |
 
