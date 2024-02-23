@@ -1,0 +1,41 @@
+[
+    {
+        "corpus": "v4_rpj_llama_s4",
+        "dir": "/data-v4-rpj-llama-s4/v4_rpj_llama_s4",
+        "tokenizer": "llama",
+        "eos_token_id": 2,
+        "ds_prefetch_depth": 1,
+        "sa_prefetch_depth": 2,
+        "od_prefetch_depth": 3
+    },
+    {
+        "corpus": "v4_piletrain_llama",
+        "dir": "/data-v4-piletrain-llama/v4_piletrain_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_c4train_llama",
+        "dir": "/data-v4-c4train-llama/v4_c4train_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_pileval_llama",
+        "dir": "/data-v4-pileval-llama/v4_pileval_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_pileval_gpt2",
+        "dir": "/data-v4-pileval-gpt2/v4_pileval_gpt2",
+        "tokenizer": "gpt2",
+        "eos_token_id": 50256
+    },
+    {
+        "corpus": "v4_dolmasample_olmo",
+        "dir": "/data-v4-dolmasample-olmo/v4_dolmasample_olmo",
+        "tokenizer": "olmo",
+        "eos_token_id": 50279
+    }
+]

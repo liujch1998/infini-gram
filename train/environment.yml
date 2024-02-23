@@ -1,0 +1,14 @@
+name: infini-gram-t
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11.8
+  - pip:
+    - transformers==4.36.1
+    - tokenizers==0.15.0
+    - zstandard==0.22.0
+    - protobuf==3.20.3
+    - ai2-olmo==0.2.4
+  - sentencepiece=0.1.96
+  - numpy
