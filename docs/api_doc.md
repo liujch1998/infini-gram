@@ -28,6 +28,17 @@ If you find infini-gram useful, please kindly cite our paper:
 ---
 <br/>
 
+## Updates
+
+### 2024-02-23
+
+* The output field `tokenized` is deprecated and replaced by `token_ids` and `tokens` in all query types (except in `search_docs`, where the new fields are `token_idsss` and `tokensss`). The `tokenized` field will be removed on 2024-03-01.
+* For `ntd` and `infgram_ntd` queries, there is now a new output field `prompt_cnt`, and the output field `ntd` is deprecated and replaced by `result_by_token_id`. The `ntd` field will be removed on 2024-03-01.
+* For `search_docs` queries, the output field `docs` is deprecated and replaced by `documents`, which contains additional metadata of the retrieved documents. The `docs` field will be removed on 2024-03-01.
+
+---
+<br/>
+
 ## Overview
 
 **Input parameters:**
@@ -115,7 +126,7 @@ If you query `natural language processing`, the API returns P(`processing` | `na
 | `tokenized` | see overview | see overview |
 | `latency` | see overview | see overview |
 | `prob` | The n-gram LM probability | A real number in range [0, 1], or -1.0 (denoting NaN) |
-| `prompt_cnt` | The count of the n-1 gram | A non-negative integer |
+| `prompt_cnt` | The count of the (n-1)-gram | A non-negative integer |
 | `cont_cnt` | The count of the n-gram | A non-negative integer |
 
 ---
@@ -145,7 +156,9 @@ If the query appears more than 1000 times in the corpus, the distribution return
 | --- | --- | --- |
 | `tokenized` | see overview | see overview |
 | `latency` | see overview | see overview |
-| `ntd` | The next-token distribution | A dict that maps tokens to probabilities. (Each key is a string containing the token and the frequencies, if you only want the token you might need to do some parsing) |
+| `prompt_cnt` | The count of the (n-1)-gram | A non-negative integer |
+| `result_by_token_id` | The next token distribution | A dict that maps token IDs to results. Each result is a dict with the following keys: `token` (str, the token string), `prob` (float, the probability of this token), `cont_cnt` (int, the count of the n-gram formed by appending this token) |
+| [deprecated] `ntd` | The next-token distribution | A dict that maps tokens to probabilities. (Each key is a string containing the token and the frequencies, if you only want the token you might need to do some parsing) |
 
 ---
 <br/>
@@ -174,7 +187,7 @@ If you query `I love natural language processing`, and `natural language` appear
 | `tokenized` | see overview | see overview |
 | `latency` | see overview | see overview |
 | `prob` | The n-gram LM probability | A real number in range [0, 1] |
-| `prompt_cnt` | The count of the n-1 gram | A non-negative integer |
+| `prompt_cnt` | The count of the (n-1)-gram | A non-negative integer |
 | `cont_cnt` | The count of the n-gram | A non-negative integer |
 | `longest_suffix` | The longest suffix used to compute the ∞-gram probability | A string (may be empty) |
 
@@ -196,7 +209,7 @@ If you query `I love natural language`, and `natural language` appears in the co
 | --- | --- | --- |
 | `corpus` | see overview | see overview |
 | `query_type` | see overview | `infgram_ntd` |
-| `query` | The (n-1)-gram to query | Any string (empty is OK) |
+| `query` | The sequence to query | Any string (empty is OK) |
 
 **Output parameters:**
 
@@ -204,8 +217,10 @@ If you query `I love natural language`, and `natural language` appears in the co
 | --- | --- | --- |
 | `tokenized` | see overview | see overview |
 | `latency` | see overview | see overview |
-| `ntd` | The next-token distribution | A dict that maps tokens to probabilities. (Each key is a string containing the token and the frequencies, if you only want the token you might need to do some parsing) |
+| `prompt_cnt` | The count of the (n-1)-gram (where (n-1) is the number of tokens in the longest suffix) | A non-negative integer |
+| `result_by_token_id` | The next token distribution | A dict that maps token IDs to results. Each result is a dict with the following keys: `token` (str, the token string), `prob` (float, the probability of this token), `cont_cnt` (int, the count of the n-gram formed by appending this token) |
 | `longest_suffix` | The longest suffix used to compute the ∞-gram probability | A string (may be empty) |
+| [deprecated] `ntd` | The next-token distribution | A dict that maps tokens to probabilities. (Each key is a string containing the token and the frequencies, if you only want the token you might need to do some parsing) |
 
 ---
 <br/>
