@@ -4,7 +4,7 @@ This is the source code of the inference part of the [infini-gram search engine]
 
 **Target audience:**
 If you would like to host a service similar to the one that powers the infini-gram [demo](https://huggingface.co/spaces/liujch1998/infini-gram) or [API](https://infini-gram.io/api_doc), then this repository is for you.
-You must have already obtained the index on some datasets by either downloading from our released [pre-built indexes]() or building your own using our [training code](https://github.com/liujch1998/infini-gram-t).
+You must have already obtained the index on some datasets by either downloading from our released [pre-built indexes]() or building your own using our [training code](https://github.com/liujch1998/infini-gram/tree/master/train).
 
 ## Overview
 
@@ -12,21 +12,6 @@ Running this code will spin up a Flask server and two inference engines in your 
 This server will listen to incoming HTTP requests and respond with the query results.
 Each query will be processed by either the C++ engine (faster, default) or the Python engine (slower), depending on the query's specification.
 These two engines should produce identical results (up to some difference in the random number generators), while the C++ engine can use multi-threading and is thus faster.
-
-## Pre-built Indexes
-
-Here are the indexes we serve in the demo and the API endpoint, and some of their statistics:
-
-| Name | Documents | Tokens | Storage | Corpus | Tokenizer |
-| --- | ---: | ---: | ---: | --- | --- |
-| `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | 8.9TiB | RedPajama | Llama |
-| `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | 2.5TiB | Pile-train | Llama |
-| `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | 1.3TiB | C4-train | Llama |
-| `v4_pileval_llama` | 214,670 | 393,769,120 | 2.3GiB | Pile-val | Llama |
-| `v4_pileval_gpt2` | 214,670 | 383,326,404 | 2.2GiB | Pile-val | GPT-2 |
-| `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | 53GiB | Dolma-sample | OLMo |
-
-[TODO: Add download links]
 
 ## System Requirements
 
@@ -51,8 +36,8 @@ sudo apt-get install g++
 
 3. Clone this repository.
 ```bash
-git clone git@github.com:liujch1998/infini-gram-i.git
-cd infini-gram-i
+git clone git@github.com:liujch1998/infini-gram.git
+cd infini-gram/inference
 ```
 
 4. Create a conda environment.
@@ -114,24 +99,29 @@ If you'd like to use one of our released pre-built indexes, you can restore a vo
 
 ### Step 2: Launch an instance
 
+For reference, we use an instance of type `m7g.2xlarge` (8 CPUs, 32GiB RAM) for serving the infini-gram demo and API endpoint, which costs $0.32/hr.
+We choose the Ubuntu 64-bit ARM image, and a 32GiB gp2 volume.
+It should be OK to use a smaller instance, but you may get higher latency when querying large indexes due to insufficient parallelization.
+
 ### Step 3: SSH into the instance and do the regular setup (refer to the Setup section above)
 
 ### Step 4: Attach the volume(s) to the instance
 
+From the AWS console, select the volume(s) that stores the index, and attach it to the instance.
+
 ### Step 5: Mount the volume(s) in the instance
 
-### Step 6: Start the Flask server
+(If the instance is rebooted, you will need to do this step again.)
+
+In the instance, use `lsblk` to locate the attached volume(s) (the first one is likely to be `/dev/nvme1n1`).
+Mount this volume by running something like:
+```bash
+sudo mkdir /data
+sudo mount /dev/nvme1n1 /data
+sudo chown ubuntu:ubuntu /data
+```
+If you're serving multiple indexes, you may want to mount each volume to a different directory.
+
+### Step 6: Start the Flask server (refer to the Run section above)
 
 ### Optional: Associate a static IP address to the instance
-
-## Citation
-
-If you find infini-gram useful, please kindly cite our paper:
-```bibtex
-@article{Liu2024InfiniGram,
-  title={Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens},
-  author={Liu, Jiacheng and Min, Sewon and Zettlemoyer, Luke and Choi, Yejin and Hajishirzi, Hannaneh},
-  journal={arXiv preprint arXiv:2401.17377},
-  year={2024}
-}
-```

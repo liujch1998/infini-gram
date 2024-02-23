@@ -1,98 +1,137 @@
-# infini-gram
+# 📖 infini-gram (train)
 
-This repo hosts the code for building the Suffix Array based index in the infini-gram paper: [Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens](https://arxiv.org/abs/2401.17377)
+This is the source code of the training part of the [infini-gram search engine](https://infini-gram.io/).
 
-You may use this code to build an index of any text corpus, which enables very fast n-gram/∞-gram queries.
+**Target audience:**
+If you would like to build an infini-gram index for a text corpus of your choice, which can be subsequently served by the [inference code](https://github.com/liujch1998/infini-gram/tree/master/inference).
 
-* Paper: <https://arxiv.org/abs/2401.17377>
-* Code: <https://github.com/liujch1998/infini-gram>
-* Demo: <https://hf.co/spaces/liujch1998/infini-gram>
-* API: (coming soon)
+## System Requirements
 
-## Pre-built indexes
+Building the index requires no GPU, but may require a significant amount of CPU, RAM, and disk space, depending on the size of your corpus.
+For reference, we built all our indexes on an AWS EC2 instance of type `r6in.32xlarge` (128 CPUs, 1TiB RAM), and the indexing of RedPajama used 19TiB of disk space.
 
-Our demo hosts the following infini-gram indexes:
-
-| Name | Tokens | Storage Size | Corpus | Tokenizer | Unlimited Len |
-| --- | --- | --- | --- | --- | --- |
-| `v3_pileval` | 383,755,744 | 2.2GiB | Pile-val | GPT-2 | yes |
-| `v3_pileval_llama` | 394,413,130 | 2.3GiB | Pile-val | LLaMA-2 | yes |
-| `v3_rpj_llama_c4` | 1,385,642,556,650 | 8.9TiB | RedPajama | LLaMA-2 | no |
-| `v4_piletrain_llama` | 383,299,322,520 | 2.4TiB | Pile-train | LLaMA-2 | yes |
-| `v4_dolmasample_olmo` | 8,039,098,124 | 53GiB | Dolma-sample | OLMo | yes |
-
-Each index is stored as an AWS EBS volume, with volume name `infinigram-i-<name>`.
-
-If you would like to build the index for other corpora, please follow the instructions below.
+If you want to index a very big corpus and your machine is too small, you may refer to our sample guide below, [Indexing Massive Corpora with AWS]().
 
 ## Setup
 
-1. Create a conda environment and activate it:
+1. Install conda (follow the [official instructions](https://docs.anaconda.com/free/miniconda/miniconda-install/)).
+
+2. Clone this repository.
 ```bash
-conda env create -f environment.yml
-conda activate infini-gram
+git clone git@github.com:liujch1998/infini-gram.git
+cd infini-gram/train
 ```
 
-2. Install Rust and compile the Rust part of the code:
+3. Create a conda environment.
 ```bash
+conda env create -f environment.yml
+conda activate infini-gram-t
+```
+
+4. Install Rust and compile the Rust part of the code:
+```bash
+sudo apt-get update
 sudo apt-get install gcc
 source "$HOME/.cargo/env"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 cargo build --release
 ```
 
-## Building the index
+## Building the Index
+
+**Estimate the number of shards:**
+Before we can build the index, we need to estimate the number of shards $S$ to use.
+(See README in the root directory for more information on sharding.)
+There are two considerations:
+1. Each shard of tokenized corpus must have no more than $2^{39} \approx 500\text{B}$ tokens.
+2. Each shard of tokenized corpus must fit in the RAM. If your machine has $M$ bytes of RAM, then the shard should be no bigger than $0.8 \cdot M$ bytes (to leave some buffer), and thus each shard should have no more than $0.4 \cdot M$ tokens.
+
+**Estimate the amount of disk space required:**
+Before buildin gthe index, you might want to check that you have enough disk space.
+Aside from the original corpus, the index will consume roughly 7 bytes per token, plus some metadata, so for a corpus of $N$ tokens, let's say you will need $8N$ bytes of disk space.
+In addition, we also need some swap disk space, which is roughly $12 N / S$ bytes.
 
 Build the index by running the following command:
 ```bash
 python main.py \
     --data_dir [/path/to/data/dir] \
+    --temp_dir [/path/to/temp/dir] \
     --save_dir [/path/to/save/dir] \
-    --tokenizer gpt2 \
-    --cpus 64 --mem 256
+    --tokenizer [TOKENIZER] \
+    --cpus [CPUS] --mem [MEM]
 ```
 * `--data_dir` is the directory that contains the text corpus. The corpus may be stored as several files, and they may be located in subdirectories. Each file must be in `.jsonl`, `.gz` or `.zst` format. Each line should be a JSON object with a `text` field.
+* `--temp_dir` is the location of the swap space. It will be cleaned up after the indexing process.
 * `--save_dir` is the directory to save the index.
-* `--tokenizer` is the tokenizer to use. Currently, we support `gpt2` and `llama`.
-* `--cpus` is the number of CPUs to use. It should be no more than the number of CPUs on the machine, and typically should be a power of 2.
-* `--mem` is the amount of memory to use, in GB. It should be no more than the amount of memory on the machine.
+* `--tokenizer` is the tokenizer to use. Currently, we support `gpt2`, `llama`, and `olmo`.
+* `--cpus` is the number of CPUs to use. It should be no more than the number of CPUs on your machine, and typically should be a power of 2.
+* `--mem` is the amount of RAM available to use, in GiB. It should be no more than 80% of the total RAM on your machine.
 
-If your corpus is very large, you may need to shard the index by specifying `--shards`. To build the index, the tokenized version of each shard must fit in memory. Use this as a guideline when deciding the number of shards.
+If you'd like to speed up the indexing process, you may distribute the work across multiple machines. Run the same command on each machine with the same `--workers W` and a different `--worker_id [0, W)`. Note that the number of workers $W$ must be a divisor of the number of shards $S$. After all workers are finished, move all index files to the same directory.
 
-If you'd like to speed up the indexing process, you may distribute the work across multiple machines. Run the same command on each machine with the same `--workers W` and a different `--worker_id [0, W)`. Note that the number of workers $W$ must be a divisor of the number of shards $S$. After all workers are finished, move all `tokenized.*` and `table.*` files to the same directory.
+## Indexing Massive Corpora with AWS
 
-## Structure of the index
+If you want to index a very big corpus and your machine is too small, you may consider using cloud services.
+Here I will go through my recipe for setting things up on AWS EC2.
 
-Each index is a directory with the following files:
-* `tokenized.{s}` -- The tokenized version of the corpus shard. This file is a binary file that is $2t$ bytes long, where $t$ is the total number of tokens. Each contiguous two bytes represent a token id.
-* `table.{s}` -- The suffix array on the byte table `tokenized.{s}`. This file is a binary file that is $k \cdot t$ bytes long, where $k$ is the number of bytes in each pointer: $k = \lceil \frac{1}{8}\log_2{2t} \rceil$. For the Pile-val dataset, $k = 4$. Each contiguous $k$ bytes represent a pointer to the `tokenized.{s}` byte table.
+### Step 1: Create volumes
 
-**Sharding**: In case the index is sharded into $S$-ways, there will be $S$ tokenized files `tokenized.0` ... `tokenized.{S-1}`, and $S$ table files `table.0` ... `table.{S-1}`. Each pair of `tokenized.{s}` and `table.{s}` is self-contained.
+Create three volumes: the first one to store the original corpus, the second one to be the swap space (should have $12 N / S$ bytes), and the third one to store the index (should have $8 N$ bytes).
+Create all volumes with type = `gp3`, and with maximum IOPS (`16000`) and throughput (`1000` MiB/s).
+After all index data is written, you may delete the swap volume, and for others reduce to minumum IOPS (`3000`) and throughput (`125` MiB/s) to save cost.
+Note that in some of the cheapest regions, a `gp3` volume costs $0.08 per GiB-month.
 
-### Endianness
+**Volume size:** When creating volumes, please make sure to reserve 10% more space than the index size, since the actual disk space seems to be less than what you reserve.
 
-All binary files in our datastores use **little-endian** byte order.
-Please make sure that `sys.byteorder == 'little'` in your inference code.
+### Step 2: Launch an instance
 
-One consequence of using little-endian is that the suffix array is not a dictionary order of the token id sequences. For example, what follows token id `0x0000` is token id `0x0100` (which is "00 01" in little-endian byte array).
-This does not matter because we are doing exact match search.
+For reference, we use an instance of type `r6in.32xlarge` (128 CPUs, 1TiB RAM), which costs $11.16/hr.
+We choose the Ubuntu 64-bit x86 image, and a 32GiB gp2 volume.
 
-## Inference with the index
+### Step 3: SSH into the instance and do the regular setup (refer to the Setup section above)
 
-The algorithms for querying the index are described in our paper. You may refer to the implementation in our [HF Spaces demo](https://huggingface.co/spaces/liujch1998/infini-gram).
+### Step 4: Attach all three volumes to the instance
+
+From the AWS console, select the volumes and attach them to the instance.
+
+### Step 5: Format and mount all three volumes in the instance
+
+In the instance, use `lsblk` to locate the attached volumes (the first one is likely to be `/dev/nvme1n1`).
+Format and mount the volumes by running something like:
+```bash
+sudo mkfs -t ext4 /dev/nvme1n1
+sudo mkdir /data_c
+sudo mount /dev/nvme1n1 /data_c
+sudo chown ubuntu:ubuntu /data_c
+
+sudo mkfs -t ext4 /dev/nvme2n1
+sudo mkdir /data_t
+sudo mount /dev/nvme2n1 /data_t
+sudo chown ubuntu:ubuntu /data_t
+
+sudo mkfs -t ext4 /dev/nvme3n1
+sudo mkdir /data_i
+sudo mount /dev/nvme3n1 /data_i
+sudo chown ubuntu:ubuntu /data_i
+```
+
+### Step 6: Download the corpus into /data_c
+
+### Step 7: Start the indexing process (refer to the Building the Index section above)
+
+### Step 8: Umount all three volumes in the instance
+```bash
+sudo umount /data_c
+sudo umount /data_t
+sudo umount /data_i
+```
+
+### Step 9: Detach all three volumes from the instance
+
+From the AWS console, select the volumes and detach them from the instance.
+
+### Step 10: Delete the swap volume; Reduce IOPS and throughput for the other two volumes
 
 ## Acknowledgements
 
 Our suffix array implementation is adapted from Google's [deduplicate-text-datasets](https://github.com/google-research/deduplicate-text-datasets)
-
-## Citation
-
-If you find this repo useful, please consider citing our paper:
-```bibtex
-@article{Liu2024InfiniGram,
-  title={Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens},
-  author={Liu, Jiacheng and Min, Sewon and Zettlemoyer, Luke and Choi, Yejin and Hajishirzi, Hannaneh},
-  journal={arXiv preprint arXiv:2401.17377},
-  year={2024}
-}
-```
