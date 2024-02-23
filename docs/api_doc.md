@@ -63,8 +63,10 @@ If the query was successful, the response JSON dict will contain the following f
 
 | Key | Description | Value Range |
 | --- | --- | --- |
-| `tokenized` | Debug information about the post-tokenization query | A string |
+| `token_ids` | The token IDs in the tokenized query | A list of integers |
+| `tokens` | The tokens in the tokenized query | A list of strings |
 | `latency` | The processing time in the engine. This does not include network latency. | A non-negative float number, in milliseconds |
+| [deprecated] `tokenized` | Debug information about the post-tokenization query | A string |
 
 In addition, the response JSON dict will contain results specific to the query type.
 Please see the specific query type below for more details.
@@ -96,9 +98,11 @@ For example, querying `a` will not give you the count of the letter `a`, but rat
 
 | Key | Description | Value Range |
 | --- | --- | --- |
-| `tokenized` | see overview | see overview |
+| `token_ids` | see overview | see overview |
+| `tokens` | see overview | see overview |
 | `latency` | see overview | see overview |
 | `count` | The count of the query n-gram | A non-negative integer |
+| [deprecated] `tokenized` | see overview | see overview |
 
 ---
 <br/>
@@ -123,11 +127,13 @@ If you query `natural language processing`, the API returns P(`processing` | `na
 
 | Key | Description | Value Range |
 | --- | --- | --- |
-| `tokenized` | see overview | see overview |
+| `token_ids` | see overview | see overview |
+| `tokens` | see overview | see overview |
 | `latency` | see overview | see overview |
 | `prob` | The n-gram LM probability | A real number in range [0, 1], or -1.0 (denoting NaN) |
 | `prompt_cnt` | The count of the (n-1)-gram | A non-negative integer |
 | `cont_cnt` | The count of the n-gram | A non-negative integer |
+| [deprecated] `tokenized` | see overview | see overview |
 
 ---
 <br/>
@@ -154,10 +160,12 @@ If the query appears more than 1000 times in the corpus, the distribution return
 
 | Key | Description | Value Range |
 | --- | --- | --- |
-| `tokenized` | see overview | see overview |
+| `token_ids` | see overview | see overview |
+| `tokens` | see overview | see overview |
 | `latency` | see overview | see overview |
 | `prompt_cnt` | The count of the (n-1)-gram | A non-negative integer |
 | `result_by_token_id` | The next token distribution | A dict that maps token IDs to results. Each result is a dict with the following keys: `token` (str, the token string), `prob` (float, the probability of this token), `cont_cnt` (int, the count of the n-gram formed by appending this token) |
+| [deprecated] `tokenized` | see overview | see overview |
 | [deprecated] `ntd` | The next-token distribution | A dict that maps tokens to probabilities. (Each key is a string containing the token and the frequencies, if you only want the token you might need to do some parsing) |
 
 ---
@@ -184,12 +192,14 @@ If you query `I love natural language processing`, and `natural language` appear
 
 | Key | Description | Value Range |
 | --- | --- | --- |
-| `tokenized` | see overview | see overview |
+| `token_ids` | see overview | see overview |
+| `tokens` | see overview | see overview |
 | `latency` | see overview | see overview |
 | `prob` | The n-gram LM probability | A real number in range [0, 1] |
 | `prompt_cnt` | The count of the (n-1)-gram | A non-negative integer |
 | `cont_cnt` | The count of the n-gram | A non-negative integer |
 | `longest_suffix` | The longest suffix used to compute the ∞-gram probability | A string (may be empty) |
+| [deprecated] `tokenized` | see overview | see overview |
 
 ---
 <br/>
@@ -215,11 +225,13 @@ If you query `I love natural language`, and `natural language` appears in the co
 
 | Key | Description | Value Range |
 | --- | --- | --- |
-| `tokenized` | see overview | see overview |
+| `token_ids` | see overview | see overview |
+| `tokens` | see overview | see overview |
 | `latency` | see overview | see overview |
 | `prompt_cnt` | The count of the (n-1)-gram (where (n-1) is the number of tokens in the longest suffix) | A non-negative integer |
 | `result_by_token_id` | The next token distribution | A dict that maps token IDs to results. Each result is a dict with the following keys: `token` (str, the token string), `prob` (float, the probability of this token), `cont_cnt` (int, the count of the n-gram formed by appending this token) |
 | `longest_suffix` | The longest suffix used to compute the ∞-gram probability | A string (may be empty) |
+| [deprecated] `tokenized` | see overview | see overview |
 | [deprecated] `ntd` | The next-token distribution | A dict that maps tokens to probabilities. (Each key is a string containing the token and the frequencies, if you only want the token you might need to do some parsing) |
 
 ---
@@ -261,7 +273,10 @@ If you want another batch of random documents, simply submit the same query agai
 
 | Key | Description | Value Range |
 | --- | --- | --- |
-| `tokenized` | see overview | see overview |
+| `token_idsss` | The token IDs in the tokenized query | A list of list of `token_ids` |
+| `tokensss` | The tokens in the tokenized query | A list of list of `tokens` |
 | `latency` | see overview | see overview |
-| `docs` | The list of documents that match the query | A list of Documents, where each Document is a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches (if this span does not match any clause, this element is NULL) |
+| `documents` | The list of documents that match the query | A list of Documents, where each Document is a dict with the following keys: `doc_ix` (int, the index of this document in the corpus), `doc_len` (int, the total number of tokens in this document), `disp_len` (int, the number of tokens returned after truncation), `spans` (a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches; if this span does not match any clause, this element is NULL) |
 | `message` | A message describing the total number of matched documents | A string |
+| [deprecated] `tokenized` | see overview | see overview |
+| [deprecated] `docs` | The list of documents that match the query | A list of Documents, where each Document is a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches (if this span does not match any clause, this element is NULL) |
