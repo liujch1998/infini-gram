@@ -128,8 +128,8 @@ class NGramProcessor:
         if len(query) > consts.MAX_QUERY_CHARS:
             return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
         input_ids = self.tokenize(query)
-        _ = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in self.tokenizer.convert_ids_to_tokens(input_ids)])
-        tokenized = f'[{_}] {str(input_ids)}'
+        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
 
         if engine == 'python':
             result = self.lm.find(input_ids)
@@ -138,6 +138,8 @@ class NGramProcessor:
 
         output = {'count': result['cnt']} if 'error' not in result else {'error': result['error']}
         output['tokenized'] = tokenized
+        output['token_ids'] = input_ids
+        output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
@@ -148,8 +150,8 @@ class NGramProcessor:
         if query == '':
             return {'error': 'Please enter at least one token!'}
         input_ids = self.tokenize(query)
-        _ = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in self.tokenizer.convert_ids_to_tokens(input_ids)])
-        tokenized = f'[{_}] {str(input_ids)}'
+        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
 
         if engine == 'python':
             result = self.lm.prob(prompt_ids=input_ids[:-1], cont_id=input_ids[-1])
@@ -158,6 +160,8 @@ class NGramProcessor:
 
         output = {'prob': result['prob'], 'prompt_cnt': result['prompt_cnt'], 'cont_cnt': result['cont_cnt']} if 'error' not in result else {'error': result['error']}
         output['tokenized'] = tokenized
+        output['token_ids'] = input_ids
+        output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
@@ -166,8 +170,8 @@ class NGramProcessor:
         if len(query) > consts.MAX_QUERY_CHARS:
             return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
         input_ids = self.tokenize(query)
-        _ = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in self.tokenizer.convert_ids_to_tokens(input_ids)])
-        tokenized = f'[{_}] {str(input_ids)}'
+        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
 
         if engine == 'python':
             result = self.lm.ntd(prompt_ids=input_ids)
@@ -178,13 +182,17 @@ class NGramProcessor:
             output = {'error': result['error']}
         else:
             ntd = {}
+            result_by_token_id = {}
             for token_id in result['prob_by_token_id']:
                 prob = result['prob_by_token_id'][token_id]
                 freq = result['freq_by_token_id'][token_id]
                 token = self.tokenizer.convert_ids_to_tokens([token_id])[0].replace('Ġ', ' ')
                 ntd[f'{token} ({freq} / {result["prompt_cnt"]})'] = prob
-            output = {'ntd': ntd}
+                result_by_token_id[token_id] = {'token': token, 'prob': prob, 'cont_cnt': freq}
+            output = {'ntd': ntd, 'result_by_token_id': result_by_token_id, 'prompt_cnt': result['prompt_cnt']}
         output['tokenized'] = tokenized
+        output['token_ids'] = input_ids
+        output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
@@ -195,8 +203,8 @@ class NGramProcessor:
         if query == '':
             return {'error': 'Please enter at least one token!'}
         input_ids = self.tokenize(query)
-        _ = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in self.tokenizer.convert_ids_to_tokens(input_ids)])
-        tokenized = f'[{_}] {str(input_ids)}'
+        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
 
         if engine == 'python':
             result = self.lm.infgram_prob(prompt_ids=input_ids[:-1], cont_id=input_ids[-1])
@@ -211,6 +219,8 @@ class NGramProcessor:
             longest_suffix = self.tokenizer.decode(longest_suffix_ids, skip_special_tokens=False, clean_up_tokenization_spaces=False)
             output['longest_suffix'] = longest_suffix
         output['tokenized'] = tokenized
+        output['token_ids'] = input_ids
+        output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
@@ -219,8 +229,8 @@ class NGramProcessor:
         if len(query) > consts.MAX_QUERY_CHARS:
             return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
         input_ids = self.tokenize(query)
-        _ = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in self.tokenizer.convert_ids_to_tokens(input_ids)])
-        tokenized = f'[{_}] {str(input_ids)}'
+        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
 
         if engine == 'python':
             result = self.lm.infgram_ntd(prompt_ids=input_ids)
@@ -233,17 +243,21 @@ class NGramProcessor:
             output = {'error': 'Fatal error: prompt_cnt is 0! This should not happen.'}
         else:
             ntd = {}
+            result_by_token_id = {}
             for token_id in result['prob_by_token_id']:
                 prob = result['prob_by_token_id'][token_id]
                 freq = result['freq_by_token_id'][token_id]
                 token = self.tokenizer.convert_ids_to_tokens([token_id])[0].replace('Ġ', ' ')
                 ntd[f'{token} ({freq} / {result["prompt_cnt"]})'] = prob
-            output = {'ntd': ntd}
+                result_by_token_id[token_id] = {'token': token, 'prob': prob, 'cont_cnt': freq}
+            output = {'ntd': ntd, 'result_by_token_id': result_by_token_id, 'prompt_cnt': result['prompt_cnt']}
         if 'lfn' in result:
             longest_suffix_ids = input_ids[-(result['lfn']-1):]
             longest_suffix = self.tokenizer.decode(longest_suffix_ids, skip_special_tokens=False, clean_up_tokenization_spaces=False)
             output['longest_suffix'] = longest_suffix
         output['tokenized'] = tokenized
+        output['token_ids'] = input_ids
+        output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
@@ -275,16 +289,22 @@ class NGramProcessor:
             if any([ngram == '' for ngram in ngrams]):
                 return {'error': 'One of the terms appear to be empty, please enter a valid query!'}
         cnf = [[self.tokenize(ngram) for ngram in ngrams] for ngrams in ngramss]
-        tokenized = []
+        tokenizedss = []
+        token_idsss, tokensss = [], []
         for disj_ix in range(len(cnf)):
-            output_tokenss = []
+            tokenizeds = []
+            token_idss, tokenss = [], []
             disj_clause = cnf[disj_ix]
             for input_ids in disj_clause:
-                _ = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in self.tokenizer.convert_ids_to_tokens(input_ids)])
-                output_tokens = f'[{_}] {str(input_ids)}'
-                output_tokenss.append(output_tokens)
-            tokenized.append('\n'.join(output_tokenss))
-        tokenized = '\n\n'.join(tokenized)
+                tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+                tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
+                tokenizeds.append(tokenized)
+                token_idss.append(input_ids)
+                tokenss.append(tokens)
+            tokenizedss.append('\n'.join(tokenizeds))
+            token_idsss.append(token_idss)
+            tokensss.append(tokenss)
+        tokenized = '\n\n'.join(tokenizedss)
 
         if engine == 'python':
             result = self.lm.search_docs(cnf, maxnum)
@@ -298,6 +318,7 @@ class NGramProcessor:
             approx = result['approx']
             message = f'{"Approximately " if approx else ""}{cnt} occurrences found. Displaying the documents of occurrences #{result["idxs"]}'
             docs = []
+            docs_new = []
             for document in result['documents']:
                 token_ids = document['token_ids']
                 spans = [(token_ids, None)]
@@ -313,8 +334,12 @@ class NGramProcessor:
                         spans = new_spans
                 doc = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
                 docs.append(doc)
-            output = {'message': message, 'docs': docs}
+                doc_new = {'spans': doc, 'doc_ix': document['doc_ix'], 'doc_len': document['doc_len'], 'disp_len': document['disp_len']}
+                docs_new.append(doc_new)
+            output = {'message': message, 'docs': docs, 'documents': docs_new}
         output['tokenized'] = tokenized
+        output['token_idsss'] = token_idsss
+        output['tokensss'] = tokensss
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
@@ -410,7 +435,7 @@ with open('indexes.json') as f:
             data_dir=config['dir'],
         )
 
-log = open(f'../flask_{consts.MODE}.log', 'a')
+log = open(f'/home/ubuntu/flask_{consts.MODE}.log', 'a')
 app = Flask(__name__)
 
 @app.route('/', methods=['POST'])

@@ -231,6 +231,9 @@ int main(int argc, char const *argv[]) {
                         json document = {
                             {"token_ids", d.token_ids},
                             {"token_offset", d.token_offset},
+                            {"doc_ix", d.doc_ix},
+                            {"doc_len", d.doc_len},
+                            {"disp_len", d.disp_len},
                         };
                         documents.push_back(document);
                     }

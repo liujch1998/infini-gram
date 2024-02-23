@@ -93,6 +93,9 @@ struct FindCnfResult {
 struct SearchDocResult {
     vector<U16> token_ids;
     U64 token_offset;
+    U64 doc_ix;
+    U64 doc_len;
+    U64 disp_len;
 };
 struct SearchDocsResult {
     vector<SearchDocResult> documents;
@@ -113,54 +116,7 @@ public:
         assert_little_endian();
         assert (fs::exists(data_dir));
 
-        if (data_dir.find("v3") != string::npos) {
-            _version = 3;
-            vector<string> ds_paths, sa_paths;
-            for (const auto & entry : fs::directory_iterator(data_dir)) {
-                if (entry.path().string().find("tokenized") != string::npos) {
-                    ds_paths.push_back(entry.path());
-                } else if (entry.path().string().find("table") != string::npos) {
-                    sa_paths.push_back(entry.path());
-                }
-            }
-            sort(ds_paths.begin(), ds_paths.end());
-            sort(sa_paths.begin(), sa_paths.end());
-            assert (ds_paths.size() == sa_paths.size());
-            _num_shards = ds_paths.size();
-            assert (_num_shards > 0);
-
-            for (auto s = 0; s < _num_shards; s++) {
-                auto ds_path = ds_paths[s];
-                int f_ds = open(ds_path.c_str(), O_RDONLY);
-                assert (f_ds != -1);
-                struct stat s_ds;
-                auto fstat_ret = fstat(f_ds, &s_ds);
-                assert (fstat_ret != -1);
-                U8 *ds = static_cast<U8*>(mmap(NULL, s_ds.st_size, PROT_READ, MAP_PRIVATE, f_ds, 0));
-                assert (ds != MAP_FAILED);
-                madvise(ds, s_ds.st_size, MADV_RANDOM);
-
-                auto sa_path = sa_paths[s];
-                int f_sa = open(sa_path.c_str(), O_RDONLY);
-                assert (f_sa != -1);
-                struct stat s_sa;
-                fstat_ret = fstat(f_sa, &s_sa);
-                assert (fstat_ret != -1);
-                U8 *sa = static_cast<U8*>(mmap(NULL, s_sa.st_size, PROT_READ, MAP_PRIVATE, f_sa, 0));
-                assert (sa != MAP_FAILED);
-                madvise(sa, s_sa.st_size, MADV_RANDOM);
-
-                U64 ds_size = s_ds.st_size;
-                U64 sa_size = s_sa.st_size;
-                assert (ds_size % 2 == 0);
-                U64 tok_cnt = ds_size / sizeof(U16);
-                assert (sa_size % tok_cnt == 0);
-                U8 ptr_size = (U8)(sa_size / tok_cnt);
-
-                auto shard = DatastoreShard{ds, sa, tok_cnt, ds_size, ptr_size};
-                _shards.push_back(shard);
-            }
-        } else if (data_dir.find("v4") != string::npos) {
+        if (data_dir.find("v4") != string::npos) {
             _version = 4;
             vector<string> ds_paths, sa_paths, od_paths;
             for (const auto & entry : fs::directory_iterator(data_dir)) {
@@ -777,60 +733,32 @@ public:
         }
 
         const vector<U8> doc_sep = {0xff, 0xff};
-        U64 start_ptr, end_ptr;
-        if (_version == 3) {
-            U64 wall_ptr = left_ptr < 2 * max_prepend_tokens ? 0 : left_ptr - 2 * max_prepend_tokens;
-            vector<U8> ds_bytes(shard.ds + wall_ptr, shard.ds + left_ptr);
-            auto start_it = find_end(ds_bytes.begin(), ds_bytes.end(), doc_sep.begin(), doc_sep.end()); // TODO: This is not optimal because it begins search at beginning
-            if (start_it == ds_bytes.end()) {
-                if (wall_ptr >= 4 && vector<U8>(shard.ds + wall_ptr - 4, shard.ds + wall_ptr - 2) == doc_sep) {
-                    start_ptr = wall_ptr + 2;
-                } else if (wall_ptr >= 2 && vector<U8>(shard.ds + wall_ptr - 2, shard.ds + wall_ptr) == doc_sep) {
-                    start_ptr = wall_ptr + 4;
-                } else {
-                    start_ptr = wall_ptr;
-                }
+        U64 lo = 0, hi = shard.doc_cnt;
+        while (hi - lo > 1) {
+            _prefetch_doc(shard, lo, hi);
+            U64 mi = (lo + hi) >> 1;
+            U64 ptr = _convert_doc_rank_to_ptr(shard, mi);
+            if (ptr <= left_ptr) {
+                lo = mi;
             } else {
-                start_ptr = start_it - ds_bytes.begin() + wall_ptr;
-                if (start_ptr % 2 == 1 && start_ptr >= 3 && vector<U8>(shard.ds + start_ptr - 3, shard.ds + start_ptr - 1) == doc_sep) {
-                    start_ptr -= 3;
-                } else if (start_ptr % 2 == 0 && start_ptr >= 2 && vector<U8>(shard.ds + start_ptr - 2, shard.ds + start_ptr) == doc_sep) {
-                    start_ptr -= 2;
-                } else if (start_ptr % 2 == 1 && start_ptr >= 1 && vector<U8>(shard.ds + start_ptr - 1, shard.ds + start_ptr + 1) == doc_sep) {
-                    start_ptr -= 1;
-                }
-                start_ptr += 6;
+                hi = mi;
             }
-            assert (start_ptr % 2 == 0);
-
-            wall_ptr = shard.ds_size < right_ptr + 2 * max_append_tokens ? shard.ds_size : right_ptr + 2 * max_append_tokens;
-            ds_bytes = vector<U8>(shard.ds + right_ptr, shard.ds + wall_ptr);
-            auto end_it = search(ds_bytes.begin(), ds_bytes.end(), doc_sep.begin(), doc_sep.end());
-            end_ptr = end_it - ds_bytes.begin() + right_ptr;
-            assert (end_ptr % 2 == 0);
-        } else if (_version == 4) {
-            U64 lo = 0, hi = shard.doc_cnt;
-            while (hi - lo > 1) {
-                _prefetch_doc(shard, lo, hi);
-                U64 mi = (lo + hi) >> 1;
-                U64 ptr = _convert_doc_rank_to_ptr(shard, mi);
-                if (ptr <= left_ptr) {
-                    lo = mi;
-                } else {
-                    hi = mi;
-                }
-            }
-            start_ptr = _convert_doc_rank_to_ptr(shard, lo);
-            end_ptr = _convert_doc_rank_to_ptr(shard, lo + 1);
-
-            start_ptr = max(start_ptr + 2, left_ptr - 2 * max_prepend_tokens); // +2 because we want to skip the document separator
-            end_ptr = min(end_ptr, right_ptr + 2 * max_append_tokens);
         }
+
+        U64 doc_ix = 0; for (auto _ = 0; _ < s; _++) doc_ix += _shards[_].doc_cnt; doc_ix += lo;
+
+        U64 doc_start_ptr = _convert_doc_rank_to_ptr(shard, lo) + 2; // +2 because we want to skip the document separator
+        U64 doc_end_ptr = _convert_doc_rank_to_ptr(shard, lo + 1);
+        U64 doc_len = (doc_end_ptr - doc_start_ptr) >> 1;
+
+        U64 start_ptr = max(doc_start_ptr, left_ptr - 2 * max_prepend_tokens);
+        U64 end_ptr = min(doc_end_ptr, right_ptr + 2 * max_append_tokens);
+        U64 disp_len = (end_ptr - start_ptr) >> 1;
 
         vector<U16> token_ids(reinterpret_cast<U16*>(shard.ds + start_ptr), reinterpret_cast<U16*>(shard.ds + end_ptr));
         U64 token_offset = (left_ptr - start_ptr) / sizeof(U16);
 
-        return SearchDocResult{token_ids, token_offset};
+        return SearchDocResult{token_ids, token_offset, doc_ix, doc_len, disp_len};
     }
 
 private:

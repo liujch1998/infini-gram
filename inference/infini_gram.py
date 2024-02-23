@@ -47,35 +47,7 @@ class NGramLanguageModeling(object):
         assert os.path.isdir(self.data_dir), self.data_dir
 
         self.datastores = [] # Each datastore represents a chunk of the entire corpus
-        if 'v3' in self.data_dir:
-            self.version = 'v3'
-
-            ds_path_base = os.path.join(self.data_dir, 'tokenized')
-            sa_path_base = os.path.join(self.data_dir, 'table')
-
-            ds_paths = sorted(glob.glob(f'{ds_path_base}*'))
-            sa_paths = sorted(glob.glob(f'{sa_path_base}*'))
-            assert len(ds_paths) == len(sa_paths), (ds_paths, sa_paths)
-            self.num_shards = len(ds_paths)
-
-            for (ds_path, sa_path) in zip(ds_paths, sa_paths):
-                f_ds = open(ds_path, 'rb')
-                ds = mmap.mmap(f_ds.fileno(), 0, prot=mmap.PROT_READ)
-                ds.madvise(mmap.MADV_RANDOM)
-                f_sa = open(sa_path, 'rb')
-                sa = mmap.mmap(f_sa.fileno(), 0, prot=mmap.PROT_READ)
-                sa.madvise(mmap.MADV_RANDOM)
-
-                ds_size = os.path.getsize(ds_path)
-                sa_size = os.path.getsize(sa_path)
-                assert ds_size % 2 == 0 # 2 bytes per token
-                tok_cnt = ds_size // 2 # total number of tokens
-                assert sa_size % tok_cnt == 0
-                ptr_size = sa_size // tok_cnt # size of each pointer
-
-                datastore = { 'ds': ds, 'sa': sa, 'tok_cnt': tok_cnt, 'ds_size': ds_size, 'ptr_size': ptr_size }
-                self.datastores.append(datastore)
-        elif 'v4' in self.data_dir:
+        if 'v4' in self.data_dir:
             self.version = 'v4'
 
             ds_path_base = os.path.join(self.data_dir, 'tokenized')
@@ -578,73 +550,40 @@ class NGramLanguageModeling(object):
         max_prepend_tokens = max(1, (max_output_doc_tokens - (right_ptr - left_ptr) // 2) // 2)
         max_append_tokens = max(1, (max_output_doc_tokens - (right_ptr - left_ptr) // 2 + 1) // 2)
 
-        if self.version == 'v3':
-            ds, ds_size = datastore['ds'], datastore['ds_size']
+        ds, do, ds_size, doc_cnt = datastore['ds'], datastore['do'], datastore['ds_size'], datastore['doc_cnt']
 
-            wall_ptr = max(0, left_ptr - 2 * max_prepend_tokens)
-            start_ptr = ds.rfind(b'\xff\xff', wall_ptr, left_ptr)
-            if start_ptr == -1:
-                if wall_ptr >= 4 and ds[wall_ptr-4:wall_ptr-2] == b'\xff\xff':
-                    start_ptr = wall_ptr + 2
-                elif wall_ptr >= 2 and ds[wall_ptr-2:wall_ptr] == b'\xff\xff':
-                    start_ptr = wall_ptr + 4
-                else:
-                    start_ptr = wall_ptr
-            else: # ds[start_ptr:start_ptr+2] == b'\xff\xff'
-                # In rare occasions, the document UID may contain \xff\xff, and our marker search may end up there
-                # When the UID is 0x????ffff, the document begins with \xff\xff\xff\xff\x??\x??
-                #     cutoff=0/2 ==> start_ptr % 2 == 0, start_ptr >= 2, ds[start_ptr-2:start_ptr] == b'\xff\xff', start_ptr < 4 or ds[start_ptr-4:start_ptr-2] != b'\xff\xff' ==> start_ptr -= 2
-                #     cutoff=4 ==> start_ptr % 2 == 0, start_ptr >= 4,
-                # When the UID is 0x??ffff??, the document begins with \xff\xff\x??\xff\xff\x??
-                #     cutoff=0/2 ==> start_ptr % 2 == 1, start_ptr >= 3, ds[start_ptr-3:start_ptr-1] == b'\xff\xff' ==> start_ptr -= 3
-                #     cutoff=4 ==> start_ptr % 2 == 0, start_ptr >= 4, ds[start_ptr-4:start_ptr-2] == b'\xff\xff', start_ptr < 6 or ds[start_ptr-6:start_ptr-4] != b'\xff\xff' ==> start_ptr -= 4
-                # For now, we assume that the UID cannot be 0xffff****
-                # The following lines account for such corner case
-                if start_ptr % 2 == 1 and start_ptr >= 3 and ds[start_ptr-3:start_ptr-1] == b'\xff\xff':
-                    start_ptr -= 3
-                elif start_ptr % 2 == 0 and start_ptr >= 2 and ds[start_ptr-2:start_ptr] == b'\xff\xff':
-                    start_ptr -= 2
-                elif start_ptr % 2 == 1 and start_ptr >= 1 and ds[start_ptr-1:start_ptr+1] == b'\xff\xff':
-                    start_ptr -= 1
-                start_ptr += 6 # '\xff\xff' + 4 bytes for the UID
-            assert start_ptr % 2 == 0
+        def prefetch(lo, hi, depth=0):
+            mi = (lo + hi) // 2 # sa index to inspect
+            if depth == 3: # fetch sa
+                do.madvise(mmap.MADV_WILLNEED, mi*8 - mi*8 % PAGESIZE, 8 + mi*8 % PAGESIZE)
+                return
+            prefetch(lo, mi, depth+1)
+            prefetch(mi, hi, depth+1)
 
-            wall_ptr = min(ds_size, right_ptr + 2 * max_append_tokens)
-            end_ptr = ds.find(b'\xff\xff', right_ptr, wall_ptr)
-            if end_ptr == -1:
-                end_ptr = wall_ptr
-            assert end_ptr % 2 == 0
+        lo, hi = 0, doc_cnt # lo always <= the answer, hi always > the answer
+        while hi - lo > 1:
+            prefetch(lo, hi)
+            mi = (lo + hi) // 2
+            ptr = self.convert_doc_rank_to_ptr(do, mi, doc_cnt, ds_size)
+            if ptr <= left_ptr:
+                lo = mi
+            else:
+                hi = mi
 
-        elif self.version == 'v4':
-            ds, do, ds_size, doc_cnt = datastore['ds'], datastore['do'], datastore['ds_size'], datastore['doc_cnt']
+        doc_ix = sum([self.datastores[_]['doc_cnt'] for _ in range(s)] + [0]) + lo
 
-            def prefetch(lo, hi, depth=0):
-                mi = (lo + hi) // 2 # sa index to inspect
-                if depth == 3: # fetch sa
-                    do.madvise(mmap.MADV_WILLNEED, mi*8 - mi*8 % PAGESIZE, 8 + mi*8 % PAGESIZE)
-                    return
-                prefetch(lo, mi, depth+1)
-                prefetch(mi, hi, depth+1)
+        doc_start_ptr = self.convert_doc_rank_to_ptr(do, lo, doc_cnt, ds_size) + 2 # +2 because we want to skip the document separator
+        doc_end_ptr = self.convert_doc_rank_to_ptr(do, lo+1, doc_cnt, ds_size)
+        doc_len = (doc_end_ptr - doc_start_ptr) // 2
 
-            lo, hi = 0, doc_cnt # lo always <= the answer, hi always > the answer
-            while hi - lo > 1:
-                prefetch(lo, hi)
-                mi = (lo + hi) // 2
-                ptr = self.convert_doc_rank_to_ptr(do, mi, doc_cnt, ds_size)
-                if ptr <= left_ptr:
-                    lo = mi
-                else:
-                    hi = mi
-            start_ptr = self.convert_doc_rank_to_ptr(do, lo, doc_cnt, ds_size)
-            end_ptr = self.convert_doc_rank_to_ptr(do, lo+1, doc_cnt, ds_size)
-
-            start_ptr = max(start_ptr + 2, left_ptr - 2 * max_prepend_tokens) # +2 because we want to skip the document separator
-            end_ptr = min(end_ptr, right_ptr + 2 * max_append_tokens)
+        start_ptr = max(doc_start_ptr, left_ptr - 2 * max_prepend_tokens)
+        end_ptr = min(doc_end_ptr, right_ptr + 2 * max_append_tokens)
+        disp_len = (end_ptr - start_ptr) // 2
 
         token_buf = np.frombuffer(ds[start_ptr : end_ptr], dtype=np.uint8)
         token_ids = token_buf.view(np.uint16).tolist()
         token_offset = (left_ptr - start_ptr) // 2
-        return {'token_ids': token_ids, 'token_offset': token_offset}
+        return {'token_ids': token_ids, 'token_offset': token_offset, 'doc_ix': doc_ix, 'doc_len': doc_len, 'disp_len': disp_len}
 
     def analyze_document(self, input_ids):
         assert type(input_ids)==list
