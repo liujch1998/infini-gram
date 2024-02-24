@@ -3,6 +3,7 @@ from flask import Flask, jsonify, request
 import json
 import numpy as np
 import os
+import requests
 import socket
 import subprocess
 import sys
@@ -26,6 +27,8 @@ parser.add_argument('--MAX_CLAUSES_IN_CNF', type=int, default=4)
 parser.add_argument('--MAX_TERMS_IN_DISJ_CLAUSE', type=int, default=4)
 consts = parser.parse_args()
 consts.MAX_DIFF_BYTES = 2 * consts.MAX_DIFF_TOKENS
+
+DOLMA_API_URL = os.environ.get(f'DOLMA_API_URL_{consts.MODE.upper()}', None)
 
 ENGINES = ['python', 'c++']
 # C++ engine
@@ -455,6 +458,11 @@ def query():
             maxnum = data['maxnum']
     except KeyError as e:
         return jsonify({'error': f'[Flask] Missing required field: {e}'}), 400
+
+    if 'dolma-v1_6' in corpus and DOLMA_API_URL is not None:
+        response = requests.post(DOLMA_API_URL, json=data)
+        return jsonify(response.json()), response.status_code
+
     try:
         processor = PROCESSOR_BY_CORPUS[corpus]
     except KeyError:
