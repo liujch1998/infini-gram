@@ -761,7 +761,7 @@ public:
         return SearchDocResult{token_ids, token_offset, doc_ix, doc_len, disp_len};
     }
 
-private:
+public:
 
     void _prefetch_find(const DatastoreShard &shard, const U64 num_bytes, const U64 lo, const U64 hi, const size_t depth = 0) const {
         U64 mi = (lo + hi) >> 1;
@@ -862,12 +862,12 @@ private:
         return {lo, hi};
     }
 
+    const Consts _consts;
     const string _data_dir;
     const U16 _eos_token_id;
     const size_t _ds_prefetch_depth;
     const size_t _sa_prefetch_depth;
     const size_t _od_prefetch_depth;
-    const Consts _consts;
     size_t _version;
     size_t _num_shards;
     vector<DatastoreShard> _shards;
@@ -927,6 +927,99 @@ public:
         return DistResult{prompt_cnt, freq_by_token_id, prob_by_token_id};
     }
 
-private:
+    SearchDocsResult search_docs(const vector<vector<vector<U16>>> &cnf, const size_t maxnum) const {
+
+        assert (cnf.size() > 0);
+        assert (maxnum > 0);
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+
+        if (cnf.size() == 1) {
+            auto disj_clause = cnf[0];
+            vector<FindDisjResult> find_results;
+            for (const auto &lm : _lms) {
+                find_results.emplace_back(lm->find_disj(disj_clause, false));
+            }
+            vector<U64> cnt_by_lm;
+            for (const auto &find_result : find_results) {
+                cnt_by_lm.push_back(find_result.cnt);
+            }
+            U64 cnt_total = accumulate(cnt_by_lm.begin(), cnt_by_lm.end(), (U64)0);
+            if (cnt_total == 0) {
+                return SearchDocsResult{{}, {}, {0}, 0, false};
+            }
+
+            // sample up to maxnum documents
+            vector<SearchDocResult> documents;
+            vector<U64> idxs;
+            for (auto d = 0; d < maxnum; d++) {
+                size_t l = discrete_distribution<size_t>(cnt_by_lm.begin(), cnt_by_lm.end())(gen);
+                const auto &lm = _lms[l];
+                auto &find_result = find_results[l];
+                auto &cnt = find_result.cnt;
+                auto &cnt_by_shard = find_result.cnt_by_shard;
+                auto &segment_by_term_by_shard = find_result.segment_by_term_by_shard;
+                size_t s = discrete_distribution<size_t>(cnt_by_shard.begin(), cnt_by_shard.end())(gen);
+                auto &segment_by_term = segment_by_term_by_shard[s];
+                vector<U64> cnt_by_term;
+                for (const auto &[start, end] : segment_by_term) {
+                    cnt_by_term.push_back(end - start);
+                }
+                size_t ss = discrete_distribution<size_t>(cnt_by_term.begin(), cnt_by_term.end())(gen);
+                auto &[start, end] = segment_by_term[ss];
+                U64 rank = uniform_int_distribution<U64>(start, end - 1)(gen); // left inclusive, right inclusive
+                U64 ptr = lm->_convert_rank_to_ptr(lm->_shards[s], rank);
+                SearchDocResult document = lm->get_document(s, ptr, ptr, lm->_consts.MAX_OUTPUT_DOC_TOKENS / maxnum);
+                U64 idx = accumulate(cnt_by_shard.begin(), cnt_by_shard.begin() + s, (U64)0) + accumulate(cnt_by_term.begin(), cnt_by_term.begin() + ss, (U64)0) + (rank - start);
+                documents.push_back(document);
+                idxs.push_back(idx);
+            }
+            return SearchDocsResult{documents, idxs, {cnt_total}, cnt_total, false};
+        }
+
+        vector<FindCnfResult> find_cnf_results;
+        for (const auto &lm : _lms) {
+            find_cnf_results.emplace_back(lm->find_cnf(cnf));
+        }
+        vector<U64> cnt_by_lm;
+        for (const auto &find_cnf_result : find_cnf_results) {
+            cnt_by_lm.push_back(find_cnf_result.cnt);
+        }
+        U64 cnt_total = accumulate(cnt_by_lm.begin(), cnt_by_lm.end(), (U64)0);
+        bool approx = any_of(find_cnf_results.begin(), find_cnf_results.end(), [](const FindCnfResult &find_cnf_result) { return find_cnf_result.approx; });
+        if (cnt_total == 0) {
+            return SearchDocsResult{{}, {}, find_cnf_results[0].cnt_by_clause, 0, false}; // NOTE: The cnt_by_clause here is a placeholder, since we do not use it in the union case
+        }
+
+        // sample up to maxnum documents
+        vector<SearchDocResult> documents;
+        vector<U64> idxs;
+        for (auto d = 0; d < maxnum; d++) {
+            size_t ll = discrete_distribution<size_t>(cnt_by_lm.begin(), cnt_by_lm.end())(gen);
+            const auto &lm = _lms[ll];
+            auto &find_cnf_result = find_cnf_results[ll];
+            auto &valid_ptr_ranges_by_shard = find_cnf_result.valid_ptr_ranges_by_shard;
+            vector<U64> valid_ptr_cnt_by_shard;
+            for (const auto &valid_ptr_ranges : valid_ptr_ranges_by_shard) {
+                valid_ptr_cnt_by_shard.push_back(valid_ptr_ranges.size());
+            }
+            U64 valid_ptr_cnt = accumulate(valid_ptr_cnt_by_shard.begin(), valid_ptr_cnt_by_shard.end(), (U64)0);
+            size_t s = discrete_distribution<size_t>(valid_ptr_cnt_by_shard.begin(), valid_ptr_cnt_by_shard.end())(gen);
+            auto &valid_ptr_ranges = valid_ptr_ranges_by_shard[s];
+            U64 i = uniform_int_distribution<U64>(0, valid_ptr_ranges.size() - 1)(gen); // left inclusive, right inclusive
+            auto &ptr_range = valid_ptr_ranges[i];
+            double percentile = (double)(accumulate(valid_ptr_cnt_by_shard.begin(), valid_ptr_cnt_by_shard.begin() + s, (U64)0) + i) / valid_ptr_cnt;
+            U64 idx = (U64)(percentile * find_cnf_result.cnt);
+            auto &[l, r] = ptr_range;
+            SearchDocResult document = lm->get_document(s, l, r, lm->_consts.MAX_OUTPUT_DOC_TOKENS / maxnum);
+            documents.push_back(document);
+            idxs.push_back(idx);
+        }
+
+        return SearchDocsResult{documents, idxs, find_cnf_results[0].cnt_by_clause, cnt_total, approx}; // NOTE: The cnt_by_clause here is a placeholder, since we do not use it in the union case
+    }
+
+public:
     vector<unique_ptr<NGramLanguageModeling>> _lms;
 };

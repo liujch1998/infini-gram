@@ -695,7 +695,8 @@ class NGramLanguageModelingUnion(NGramLanguageModeling):
             disj_clause = cnf[0]
             find_results = [lm.find_disj(disj_clause) for lm in self.lms]
             cnt_by_lm = [find_result['cnt'] for find_result in find_results]
-            if sum(cnt_by_lm) == 0:
+            cnt_total = sum(cnt_by_lm)
+            if cnt_total == 0:
                 if len(disj_clause) == 1:
                     return {'error': f'The query term is not found in the corpus!'}
                 else:
@@ -722,12 +723,14 @@ class NGramLanguageModelingUnion(NGramLanguageModeling):
 
             end_time = time.time()
             latency = (end_time - start_time)*1000
-            return {'documents': documents, 'idxs': idxs, 'cnt': cnt, 'approx': False, 'latency': latency}
+            return {'documents': documents, 'idxs': idxs, 'cnt': cnt_total, 'approx': False, 'latency': latency}
 
         find_results = [lm.find_cnf(cnf) for lm in self.lms]
 
         cnt_by_lm = [find_result['cnt'] for find_result in find_results]
-        if sum(cnt_by_lm) == 0:
+        cnt_total = sum(cnt_by_lm)
+        approx = any([find_result['approx'] for find_result in find_results])
+        if cnt_total == 0:
             return {'error': 'Query is not found in the corpus! Try relaxing the constraints.'}
 
         # sample up to maxnum documents
@@ -750,12 +753,9 @@ class NGramLanguageModelingUnion(NGramLanguageModeling):
             documents.append(document)
             idxs.append(idx)
 
-        cnt = sum(cnt_by_lm)
-        approx = any([find_result['approx'] for find_result in find_results])
-
         end_time = time.time()
         latency = (end_time - start_time)*1000
-        return {'documents': documents, 'idxs': idxs, 'cnt': cnt, 'approx': approx, 'latency': latency}
+        return {'documents': documents, 'idxs': idxs, 'cnt': cnt_total, 'approx': approx, 'latency': latency}
 
 
 def main():
