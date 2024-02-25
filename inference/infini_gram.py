@@ -650,6 +650,17 @@ class NGramLanguageModelingUnion(NGramLanguageModeling):
 
         self.lms = [NGramLanguageModeling(consts, data_dir, eos_token_id) for data_dir in data_dirs]
 
+    def find(self, input_ids):
+        start_time = time.time()
+
+        results = [lm.find(input_ids) for lm in self.lms]
+        cnt_by_lm = [result['cnt'] for result in results]
+        cnt = sum(cnt_by_lm)
+
+        end_time = time.time()
+        latency = (end_time - start_time)*1000
+        return {'cnt': cnt, 'latency': latency}
+
     def prob(self, prompt_ids, cont_id):
         start_time = time.time()
 
