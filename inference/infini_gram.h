@@ -474,7 +474,7 @@ public:
         return InfgramDistResult{lfn, result.prompt_cnt, result.freq_by_token_id, result.prob_by_token_id};
     }
 
-    SearchDocsResult search_docs(const vector<vector<vector<U16>>> &cnf, const size_t maxnum) const {
+    virtual SearchDocsResult search_docs(const vector<vector<vector<U16>>> &cnf, const size_t maxnum) const {
 
         assert (cnf.size() > 0);
         assert (maxnum > 0);
@@ -927,7 +927,7 @@ public:
         return DistResult{prompt_cnt, freq_by_token_id, prob_by_token_id};
     }
 
-    SearchDocsResult search_docs(const vector<vector<vector<U16>>> &cnf, const size_t maxnum) const {
+    SearchDocsResult search_docs(const vector<vector<vector<U16>>> &cnf, const size_t maxnum) const override {
 
         assert (cnf.size() > 0);
         assert (maxnum > 0);
