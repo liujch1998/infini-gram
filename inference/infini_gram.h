@@ -194,7 +194,7 @@ public:
         }
     }
 
-    FindResult find(const vector<U16> &input_ids, const vector<pair<U64, U64>> &hint_segment_by_shard = {}) const {
+    virtual FindResult find(const vector<U16> &input_ids, const vector<pair<U64, U64>> &hint_segment_by_shard = {}) const {
 
         assert (hint_segment_by_shard.empty() || hint_segment_by_shard.size() == _num_shards);
 
@@ -279,7 +279,7 @@ public:
         *thread_output = hi;
     }
 
-    ProbResult prob(const vector<U16> &prompt_ids, const U16 cont_id) const {
+    virtual ProbResult prob(const vector<U16> &prompt_ids, const U16 cont_id) const {
 
         auto prompt_find_result = find(prompt_ids);
         U64 prompt_cnt = prompt_find_result.cnt;
@@ -295,7 +295,7 @@ public:
         return ProbResult{prob, prompt_cnt, cont_cnt};
     }
 
-    DistResult ntd(const vector<U16> &prompt_ids) const {
+    virtual DistResult ntd(const vector<U16> &prompt_ids) const {
 
         auto prompt_find_result = find(prompt_ids);
         if (prompt_find_result.cnt == 0) {
@@ -871,4 +871,62 @@ private:
     size_t _version;
     size_t _num_shards;
     vector<DatastoreShard> _shards;
+};
+
+
+class NGramLanguageModelingUnion : public NGramLanguageModeling {
+public:
+
+    NGramLanguageModelingUnion() {}
+
+    NGramLanguageModelingUnion(const vector<string> data_dirs, const U16 eos_token_id, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth, const Consts consts) {
+        for (const auto &data_dir : data_dirs) {
+            _lms.emplace_back(make_unique<NGramLanguageModeling>(data_dir, eos_token_id, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, consts));
+        }
+    }
+
+    FindResult find(const vector<U16> &ngram, const vector<pair<U64, U64>> &hint_segment_by_shard = {}) const override {
+        vector<FindResult> results;
+        for (const auto &lm : _lms) {
+            results.emplace_back(lm->find(ngram));
+        }
+        U64 cnt = accumulate(results.begin(), results.end(), (U64)0, [](U64 a, const FindResult &b) { return a + b.cnt; });
+        return FindResult{cnt, {}};
+    }
+
+    ProbResult prob(const vector<U16> &prompt_ids, const U16 cont_id) const override {
+        vector<ProbResult> results;
+        for (const auto &lm : _lms) {
+            results.emplace_back(lm->prob(prompt_ids, cont_id));
+        }
+        U64 prompt_cnt = accumulate(results.begin(), results.end(), (U64)0, [](U64 a, const ProbResult &b) { return a + b.prompt_cnt; });
+        U64 cont_cnt = accumulate(results.begin(), results.end(), (U64)0, [](U64 a, const ProbResult &b) { return a + b.cont_cnt; });
+        if (prompt_cnt == 0) {
+            return ProbResult{-1.0, 0, 0};
+        }
+        double prob = (double)cont_cnt / prompt_cnt;
+        return ProbResult{prob, prompt_cnt, cont_cnt};
+    }
+
+    DistResult ntd(const vector<U16> &prompt_ids) const override {
+        vector<DistResult> results;
+        for (const auto &lm : _lms) {
+            results.emplace_back(lm->ntd(prompt_ids));
+        }
+        U64 prompt_cnt = accumulate(results.begin(), results.end(), (U64)0, [](U64 a, const DistResult &b) { return a + b.prompt_cnt; });
+        map<U16, U64> freq_by_token_id = {};
+        for (const auto &result : results) {
+            for (const auto& [token_id, freq] : result.freq_by_token_id) {
+                freq_by_token_id[token_id] += freq;
+            }
+        }
+        map<U16, double> prob_by_token_id = {};
+        for (const auto& [token_id, freq] : freq_by_token_id) {
+            prob_by_token_id[token_id] = (double)freq / prompt_cnt;
+        }
+        return DistResult{prompt_cnt, freq_by_token_id, prob_by_token_id};
+    }
+
+private:
+    vector<unique_ptr<NGramLanguageModeling>> _lms;
 };

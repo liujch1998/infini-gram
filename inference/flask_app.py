@@ -113,11 +113,8 @@ class NGramProcessor:
             raise NotImplementedError
         self.corpus = corpus
 
-        if 'type' in config and config['type'] == 'union':
-            assert 'dirs' in config
+        if 'dirs' in config:
             self.lm = NGramLanguageModelingUnion(consts=consts, data_dirs=config['dirs'], eos_token_id=self.tokenizer.eos_token_id)
-        elif 'type' in config and config['type'] == 'diff':
-            raise NotImplementedError
         else:
             assert 'dir' in config
             self.lm = NGramLanguageModeling(consts=consts, data_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id)

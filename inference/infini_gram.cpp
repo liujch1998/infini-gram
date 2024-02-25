@@ -61,12 +61,16 @@ int main(int argc, char const *argv[]) {
     f.close();
     for (const auto& config : configs) {
         const string corpus = config["corpus"];
-        const string dir = config["dir"];
         const U16 eos_token_id = (U16)config["eos_token_id"];
         const size_t ds_prefetch_depth = config.contains("ds_prefetch_depth") ? (size_t)config["ds_prefetch_depth"] : 1;
         const size_t sa_prefetch_depth = config.contains("sa_prefetch_depth") ? (size_t)config["sa_prefetch_depth"] : 3;
         const size_t od_prefetch_depth = config.contains("od_prefetch_depth") ? (size_t)config["od_prefetch_depth"] : 3;
-        auto lm = make_unique<NGramLanguageModeling>(dir, eos_token_id, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, consts);
+        unique_ptr<NGramLanguageModeling> lm;
+        if (config.contains("dirs")) {
+            lm = make_unique<NGramLanguageModelingUnion>(config["dirs"], eos_token_id, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, consts);
+        } else {
+            lm = make_unique<NGramLanguageModeling>(config["dir"], eos_token_id, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, consts);
+        }
         LM_BY_CORPUS.insert(make_pair(corpus, std::move(lm)));
     }
 
