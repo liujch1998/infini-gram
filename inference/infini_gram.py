@@ -640,6 +640,113 @@ class NGramLanguageModeling(object):
         return ptr
 
 
+class NGramLanguageModelingUnion(NGramLanguageModeling):
+
+    def __init__(self, consts, data_dirs, eos_token_id):
+
+        self.consts = consts
+        self.data_dirs = data_dirs
+        self.eos_token_id = eos_token_id
+
+        self.lms = [NGramLanguageModeling(consts, data_dir, eos_token_id) for data_dir in data_dirs]
+
+    def prob(self, prompt_ids, cont_id):
+        start_time = time.time()
+
+        results = [lm.prob(prompt_ids, cont_id) for lm in self.lms]
+        prompt_cnt = sum([result['prompt_cnt'] for result in results])
+        cont_cnt = sum([result['cont_cnt'] for result in results])
+        prob = cont_cnt / prompt_cnt if prompt_cnt > 0 else -1.0
+
+        end_time = time.time()
+        latency = (end_time - start_time)*1000
+        return {"prob": prob, "prompt_cnt": prompt_cnt, "cont_cnt": cont_cnt, "latency": latency}
+
+    def ntd(self, prompt_ids):
+        start_time = time.time()
+
+        results = [lm.ntd(prompt_ids) for lm in self.lms]
+        prompt_cnt = sum([result['prompt_cnt'] for result in results])
+        freq_by_token_id = defaultdict(int)
+        for result in results:
+            for token_id, freq in result['freq_by_token_id'].items():
+                freq_by_token_id[token_id] += freq
+        prob_by_token_id = {token_id: freq / prompt_cnt if prompt_cnt > 0 else -1.0 for token_id, freq in freq_by_token_id.items()}
+
+        end_time = time.time()
+        latency = (end_time - start_time)*1000
+        return {'prompt_cnt': prompt_cnt, 'freq_by_token_id': freq_by_token_id, 'prob_by_token_id': prob_by_token_id, 'latency': latency}
+
+    def search_docs(self, cnf, maxnum):
+        start_time = time.time()
+
+        if len(cnf) == 1:
+            disj_clause = cnf[0]
+            find_results = [lm.find_disj(disj_clause) for lm in self.lms]
+            cnt_by_lm = [find_result['cnt'] for find_result in find_results]
+            if sum(cnt_by_lm) == 0:
+                if len(disj_clause) == 1:
+                    return {'error': f'The query term is not found in the corpus!'}
+                else:
+                    return {'error': f'None of the query terms is found in the corpus!'}
+
+            # sample up to maxnum documents
+            documents, idxs = [], []
+            for _ in range(maxnum):
+                l = random.choices(range(len(self.lms)), weights=cnt_by_lm)[0]
+                lm = self.lms[l]
+                find_result = find_results[l]
+                cnt, cnt_by_shard, segments_by_shard = find_result['cnt'], find_result['cnt_by_shard'], find_result['segments_by_shard']
+                s = random.choices(range(lm.num_shards), weights=cnt_by_shard)[0]
+                segments = segments_by_shard[s]
+                cnt_by_segment = [end-start for (start, end) in segments]
+                ss = random.choices(range(len(segments)), weights=cnt_by_segment)[0]
+                (start, end) = segments[ss]
+                rank = random.randrange(start, end) # left inclusive, right exclusive
+                ptr = lm.convert_rank_to_ptr(lm.datastores[s]['sa'], rank, lm.datastores[s]['ptr_size'])
+                document = lm.get_document(s, ptr, ptr, max_output_doc_tokens=lm.consts.MAX_OUTPUT_DOC_TOKENS // maxnum)
+                idx = sum(cnt_by_shard[:s]) + sum(cnt_by_segment[:ss]) + (rank - start)
+                documents.append(document)
+                idxs.append(idx)
+
+            end_time = time.time()
+            latency = (end_time - start_time)*1000
+            return {'documents': documents, 'idxs': idxs, 'cnt': cnt, 'approx': False, 'latency': latency}
+
+        find_results = [lm.find_cnf(cnf) for lm in self.lms]
+
+        cnt_by_lm = [find_result['cnt'] for find_result in find_results]
+        if sum(cnt_by_lm) == 0:
+            return {'error': 'Query is not found in the corpus! Try relaxing the constraints.'}
+
+        # sample up to maxnum documents
+        documents, idxs = [], []
+        for _ in range(maxnum):
+            l = random.choices(range(len(self.lms)), weights=cnt_by_lm)[0]
+            lm = self.lms[l]
+            find_result = find_results[l]
+            cnt, valid_ptr_ranges_by_shard, approx = find_result['cnt'], find_result['valid_ptr_ranges_by_shard'], find_result['approx']
+            valid_ptr_cnt_by_shard = [len(valid_ptr_ranges) for valid_ptr_ranges in valid_ptr_ranges_by_shard]
+            valid_ptr_cnt = sum(valid_ptr_cnt_by_shard)
+            s = random.choices(range(lm.num_shards), weights=valid_ptr_cnt_by_shard)[0]
+            valid_ptr_ranges = valid_ptr_ranges_by_shard[s]
+            i = random.randrange(0, len(valid_ptr_ranges)) # left inclusive, right exclusive
+            ptr_range = valid_ptr_ranges[i]
+            percentile = (sum(valid_ptr_cnt_by_shard[:s]) + i) / valid_ptr_cnt
+            idx = int(percentile * cnt)
+            (l, r) = ptr_range
+            document = lm.get_document(s, l, r, max_output_doc_tokens=lm.consts.MAX_OUTPUT_DOC_TOKENS // maxnum)
+            documents.append(document)
+            idxs.append(idx)
+
+        cnt = sum(cnt_by_lm)
+        approx = any([find_result['approx'] for find_result in find_results])
+
+        end_time = time.time()
+        latency = (end_time - start_time)*1000
+        return {'documents': documents, 'idxs': idxs, 'cnt': cnt, 'approx': approx, 'latency': latency}
+
+
 def main():
     tokenizer_type = 'llama'
     tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=os.environ['HF_TOKEN_DOWNLOAD'], add_bos_token=False, add_eos_token=False)

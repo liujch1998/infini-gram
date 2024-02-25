@@ -10,7 +10,7 @@ import sys
 import time
 import traceback
 from transformers import AutoTokenizer
-from infini_gram import NGramLanguageModeling
+from infini_gram import NGramLanguageModeling, NGramLanguageModelingUnion
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--MODE', type=str, default='api', choices=['api', 'dev', 'demo'])
@@ -96,7 +96,11 @@ cpp_processor = CppProcessor()
 
 class NGramProcessor:
 
-    def __init__(self, tokenizer_type, corpus, data_dir):
+    def __init__(self, config):
+        assert 'tokenizer' in config and 'corpus' in config
+        tokenizer_type = config['tokenizer']
+        corpus = config['corpus']
+
         self.tokenizer_type = tokenizer_type
         if tokenizer_type == 'gpt2':
             self.tokenizer = AutoTokenizer.from_pretrained('gpt2', add_bos_token=False, add_eos_token=False)
@@ -108,7 +112,15 @@ class NGramProcessor:
         else:
             raise NotImplementedError
         self.corpus = corpus
-        self.lm = NGramLanguageModeling(consts=consts, data_dir=data_dir, eos_token_id=self.tokenizer.eos_token_id)
+
+        if 'type' in config and config['type'] == 'union':
+            assert 'dirs' in config
+            self.lm = NGramLanguageModelingUnion(consts=consts, data_dirs=config['dirs'], eos_token_id=self.tokenizer.eos_token_id)
+        elif 'type' in config and config['type'] == 'diff':
+            raise NotImplementedError
+        else:
+            assert 'dir' in config
+            self.lm = NGramLanguageModeling(consts=consts, data_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id)
 
     def tokenize(self, query):
         if self.tokenizer_type == 'gpt2':
@@ -431,12 +443,7 @@ PROCESSOR_BY_CORPUS = {}
 with open('indexes.json') as f:
     configs = json.load(f)
     for config in configs:
-        assert all([k in config for k in ['corpus', 'dir', 'tokenizer', 'eos_token_id']])
-        PROCESSOR_BY_CORPUS[config['corpus']] = NGramProcessor(
-            tokenizer_type=config['tokenizer'],
-            corpus=config['corpus'],
-            data_dir=config['dir'],
-        )
+        PROCESSOR_BY_CORPUS[config['corpus']] = NGramProcessor(config)
 
 log = open(f'/home/ubuntu/flask_{consts.MODE}.log', 'a')
 app = Flask(__name__)
