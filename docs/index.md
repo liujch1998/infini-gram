@@ -9,7 +9,7 @@ title: Home
 
 <p align="center"><sup>1</sup>University of Washington, <sup>2</sup>Allen Institute for AI</p>
 
-<p align="center">[<a href="https://arxiv.org/pdf/2401.17377.pdf">Paper</a>] [<a href="https://hf.co/spaces/liujch1998/infini-gram">Demo</a>] [<a href="/api_doc.md">API</a>] [<a href="https://github.com/liujch1998/infini-gram">Code</a>] [Pre-built indexes (coming soon)]</p>
+<p align="center">[<a href="https://arxiv.org/pdf/2401.17377.pdf">Paper</a>] [<a href="https://hf.co/spaces/liujch1998/infini-gram">Demo</a>] [<a href="/api_doc">API</a>] [<a href="https://github.com/liujch1998/infini-gram">Code</a>] [Pre-built indexes (coming soon)]</p>
 
 ---
 <br/>
