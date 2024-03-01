@@ -150,7 +150,7 @@ class NGramProcessor:
             tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
         else:
             assert query_ids is not None
-            if not type(query_ids) == list and all([type(q) == int for q in query_ids]):
+            if not (type(query_ids) == list and all([type(q) == int for q in query_ids])):
                 return {'error': f'query_ids must be a list of integers!'}
             if len(query_ids) > consts.MAX_QUERY_TOKENS:
                 return {'error': f'Please limit your input to <= {consts.MAX_QUERY_TOKENS} tokens!'}
@@ -164,7 +164,7 @@ class NGramProcessor:
 
     def count(self, engine, query, query_ids):
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
-        if result is dict:
+        if type(result) == dict:
             return result
         input_ids, tokens = result
 
@@ -182,7 +182,7 @@ class NGramProcessor:
 
     def prob(self, engine, query, query_ids):
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=False)
-        if result is dict:
+        if type(result) == dict:
             return result
         input_ids, tokens = result
 
@@ -200,7 +200,7 @@ class NGramProcessor:
 
     def ntd(self, engine, query, query_ids):
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
-        if result is dict:
+        if type(result) == dict:
             return result
         input_ids, tokens = result
 
@@ -227,7 +227,7 @@ class NGramProcessor:
 
     def infgram_prob(self, engine, query, query_ids):
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=False)
-        if result is dict:
+        if type(result) == dict:
             return result
         input_ids, tokens = result
 
@@ -251,7 +251,7 @@ class NGramProcessor:
 
     def infgram_ntd(self, engine, query, query_ids):
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
-        if result is dict:
+        if type(result) == dict:
             return result
         input_ids, tokens = result
 
@@ -316,7 +316,7 @@ class NGramProcessor:
         else:
             assert query_ids is not None
             cnf = query_ids
-            if not type(cnf) == list and all([type(disj_clause) == list and all([type(input_ids) == list and all([type(input_id) == int for input_id in input_ids]) for input_ids in disj_clause]) for disj_clause in cnf]):
+            if not (type(cnf) == list and all([type(disj_clause) == list and all([type(input_ids) == list and all([type(input_id) == int for input_id in input_ids]) for input_ids in disj_clause]) for disj_clause in cnf])):
                 return {'error': f'query_ids must be a list of lists of lists of integers!'}
             if sum([sum([len(input_ids) for input_ids in disj_clause]) for disj_clause in cnf]) > consts.MAX_QUERY_TOKENS:
                 return {'error': f'Please limit your input to <= {consts.MAX_QUERY_TOKENS} tokens!'}
