@@ -17,6 +17,7 @@ parser.add_argument('--MODE', type=str, default='api', choices=['api', 'dev', 'd
 parser.add_argument('--FLASK_PORT', type=int, default=5000)
 parser.add_argument('--CPP_PORT', type=int, default=6000)
 parser.add_argument('--MAX_QUERY_CHARS', type=int, default=1000)
+parser.add_argument('--MAX_QUERY_TOKENS', type=int, default=500)
 parser.add_argument('--MAX_INPUT_DOC_TOKENS', type=int, default=1000)
 parser.add_argument('--MAX_OUTPUT_DOC_TOKENS', type=int, default=5000)
 parser.add_argument('--MAX_OUTPUT_NUM_DOCS', type=int, default=10)
@@ -136,12 +137,36 @@ class NGramProcessor:
             raise NotImplementedError
         return input_ids
 
-    def count(self, engine, query):
-        if len(query) > consts.MAX_QUERY_CHARS:
-            return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
-        input_ids = self.tokenize(query)
-        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
+    def get_input_ids_and_tokens(self, query, query_ids, allow_empty):
+        if query is not None:
+            assert query_ids is None
+            if not type(query) == str:
+                return {'error': f'query must be a string!'}
+            if len(query) > consts.MAX_QUERY_CHARS:
+                return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
+            if not allow_empty and query == '':
+                return {'error': 'Please enter at least one token!'}
+            input_ids = self.tokenize(query)
+            tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+        else:
+            assert query_ids is not None
+            if not type(query_ids) == list and all([type(q) == int for q in query_ids]):
+                return {'error': f'query_ids must be a list of integers!'}
+            if len(query_ids) > consts.MAX_QUERY_TOKENS:
+                return {'error': f'Please limit your input to <= {consts.MAX_QUERY_TOKENS} tokens!'}
+            if not allow_empty and len(query_ids) == 0:
+                return {'error': 'Please enter at least one token!'}
+            if any([query_id < 0 or query_id >= self.tokenizer.vocab_size for query_id in query_ids]):
+                return {'error': f'Some item(s) in your query_ids are out-of-range!'}
+            input_ids = query_ids
+            tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+        return input_ids, tokens
+
+    def count(self, engine, query, query_ids):
+        result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
+        if result is dict:
+            return result
+        input_ids, tokens = result
 
         if engine == 'python':
             result = self.lm.find(input_ids)
@@ -149,21 +174,17 @@ class NGramProcessor:
             result = cpp_processor.process({'query_type': 'count', 'corpus': self.corpus, 'input_ids': input_ids})
 
         output = {'count': result['cnt']} if 'error' not in result else {'error': result['error']}
-        output['tokenized'] = tokenized
         output['token_ids'] = input_ids
         output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
 
-    def prob(self, engine, query):
-        if len(query) > consts.MAX_QUERY_CHARS:
-            return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
-        if query == '':
-            return {'error': 'Please enter at least one token!'}
-        input_ids = self.tokenize(query)
-        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
+    def prob(self, engine, query, query_ids):
+        result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=False)
+        if result is dict:
+            return result
+        input_ids, tokens = result
 
         if engine == 'python':
             result = self.lm.prob(prompt_ids=input_ids[:-1], cont_id=input_ids[-1])
@@ -171,19 +192,17 @@ class NGramProcessor:
             result = cpp_processor.process({'query_type': 'prob', 'corpus': self.corpus, 'input_ids': input_ids})
 
         output = {'prob': result['prob'], 'prompt_cnt': result['prompt_cnt'], 'cont_cnt': result['cont_cnt']} if 'error' not in result else {'error': result['error']}
-        output['tokenized'] = tokenized
         output['token_ids'] = input_ids
         output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
 
-    def ntd(self, engine, query):
-        if len(query) > consts.MAX_QUERY_CHARS:
-            return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
-        input_ids = self.tokenize(query)
-        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
+    def ntd(self, engine, query, query_ids):
+        result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
+        if result is dict:
+            return result
+        input_ids, tokens = result
 
         if engine == 'python':
             result = self.lm.ntd(prompt_ids=input_ids)
@@ -193,30 +212,24 @@ class NGramProcessor:
         if 'error' in result:
             output = {'error': result['error']}
         else:
-            ntd = {}
             result_by_token_id = {}
             for token_id in result['prob_by_token_id']:
                 prob = result['prob_by_token_id'][token_id]
                 freq = result['freq_by_token_id'][token_id]
                 token = self.tokenizer.convert_ids_to_tokens([token_id])[0].replace('Ġ', ' ')
-                ntd[f'{token} ({freq} / {result["prompt_cnt"]})'] = prob
                 result_by_token_id[token_id] = {'token': token, 'prob': prob, 'cont_cnt': freq}
-            output = {'ntd': ntd, 'result_by_token_id': result_by_token_id, 'prompt_cnt': result['prompt_cnt']}
-        output['tokenized'] = tokenized
+            output = {'result_by_token_id': result_by_token_id, 'prompt_cnt': result['prompt_cnt']}
         output['token_ids'] = input_ids
         output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
 
-    def infgram_prob(self, engine, query):
-        if len(query) > consts.MAX_QUERY_CHARS:
-            return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
-        if query == '':
-            return {'error': 'Please enter at least one token!'}
-        input_ids = self.tokenize(query)
-        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
+    def infgram_prob(self, engine, query, query_ids):
+        result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=False)
+        if result is dict:
+            return result
+        input_ids, tokens = result
 
         if engine == 'python':
             result = self.lm.infgram_prob(prompt_ids=input_ids[:-1], cont_id=input_ids[-1])
@@ -230,19 +243,17 @@ class NGramProcessor:
             longest_suffix_ids = input_ids[-result['lfn']:-1]
             longest_suffix = self.tokenizer.decode(longest_suffix_ids, skip_special_tokens=False, clean_up_tokenization_spaces=False)
             output['longest_suffix'] = longest_suffix
-        output['tokenized'] = tokenized
         output['token_ids'] = input_ids
         output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
 
-    def infgram_ntd(self, engine, query):
-        if len(query) > consts.MAX_QUERY_CHARS:
-            return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
-        input_ids = self.tokenize(query)
-        tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-        tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
+    def infgram_ntd(self, engine, query, query_ids):
+        result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
+        if result is dict:
+            return result
+        input_ids, tokens = result
 
         if engine == 'python':
             result = self.lm.infgram_ntd(prompt_ids=input_ids)
@@ -254,27 +265,24 @@ class NGramProcessor:
         elif result['prompt_cnt'] == 0:
             output = {'error': 'Fatal error: prompt_cnt is 0! This should not happen.'}
         else:
-            ntd = {}
             result_by_token_id = {}
             for token_id in result['prob_by_token_id']:
                 prob = result['prob_by_token_id'][token_id]
                 freq = result['freq_by_token_id'][token_id]
                 token = self.tokenizer.convert_ids_to_tokens([token_id])[0].replace('Ġ', ' ')
-                ntd[f'{token} ({freq} / {result["prompt_cnt"]})'] = prob
                 result_by_token_id[token_id] = {'token': token, 'prob': prob, 'cont_cnt': freq}
-            output = {'ntd': ntd, 'result_by_token_id': result_by_token_id, 'prompt_cnt': result['prompt_cnt']}
+            output = {'result_by_token_id': result_by_token_id, 'prompt_cnt': result['prompt_cnt']}
         if 'lfn' in result:
             longest_suffix_ids = input_ids[-(result['lfn']-1):]
             longest_suffix = self.tokenizer.decode(longest_suffix_ids, skip_special_tokens=False, clean_up_tokenization_spaces=False)
             output['longest_suffix'] = longest_suffix
-        output['tokenized'] = tokenized
         output['token_ids'] = input_ids
         output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
 
-    def search_docs(self, engine, query, maxnum):
+    def search_docs(self, engine, query, query_ids, maxnum):
         '''
         returns:
         - outputs (list, guaranteed to have length 0 or maxnum)
@@ -285,38 +293,54 @@ class NGramProcessor:
             return {'error': f'Please request at least one document!'}
         if maxnum > consts.MAX_OUTPUT_NUM_DOCS:
             return {'error': f'Please request at most {consts.MAX_OUTPUT_NUM_DOCS} documents!'}
-        if len(query) > consts.MAX_QUERY_CHARS:
-            return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
-        clauses = query.split(' AND ')
-        ngramss = [clause.split(' OR ') for clause in clauses]
-        if len(ngramss) == 0:
-            return {'error': 'Please enter at least one token!'}
-        if len(ngramss) > consts.MAX_CLAUSES_IN_CNF:
-            return {'error': f'Please enter at most {consts.MAX_CLAUSES_IN_CNF} disjunctive clauses!'}
-        for ngrams in ngramss:
-            if len(ngrams) == 0:
-                return {'error': 'One of the disjunctive clauses appears to be empty, please enter a valid query!'}
-            if len(ngrams) > consts.MAX_TERMS_IN_DISJ_CLAUSE:
-                return {'error': f'Please enter at most {consts.MAX_TERMS_IN_DISJ_CLAUSE} terms in each disjunctive clause!'}
-            if any([ngram == '' for ngram in ngrams]):
-                return {'error': 'One of the terms appear to be empty, please enter a valid query!'}
-        cnf = [[self.tokenize(ngram) for ngram in ngrams] for ngrams in ngramss]
-        tokenizedss = []
+        if query is not None:
+            assert query_ids is None
+            if not type(query) == str:
+                return {'error': f'query must be a string!'}
+            if len(query) > consts.MAX_QUERY_CHARS:
+                return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
+            clauses = query.split(' AND ')
+            ngramss = [clause.split(' OR ') for clause in clauses]
+            if len(ngramss) == 0:
+                return {'error': 'Please enter at least one token!'}
+            if len(ngramss) > consts.MAX_CLAUSES_IN_CNF:
+                return {'error': f'Please enter at most {consts.MAX_CLAUSES_IN_CNF} disjunctive clauses!'}
+            for ngrams in ngramss:
+                if len(ngrams) == 0:
+                    return {'error': 'One of the disjunctive clauses appears to be empty, please enter a valid query!'}
+                if len(ngrams) > consts.MAX_TERMS_IN_DISJ_CLAUSE:
+                    return {'error': f'Please enter at most {consts.MAX_TERMS_IN_DISJ_CLAUSE} terms in each disjunctive clause!'}
+                if any([ngram == '' for ngram in ngrams]):
+                    return {'error': 'One of the terms appear to be empty, please enter a valid query!'}
+            cnf = [[self.tokenize(ngram) for ngram in ngrams] for ngrams in ngramss]
+        else:
+            assert query_ids is not None
+            cnf = query_ids
+            if not type(cnf) == list and all([type(disj_clause) == list and all([type(input_ids) == list and all([type(input_id) == int for input_id in input_ids]) for input_ids in disj_clause]) for disj_clause in cnf]):
+                return {'error': f'query_ids must be a list of lists of lists of integers!'}
+            if sum([sum([len(input_ids) for input_ids in disj_clause]) for disj_clause in cnf]) > consts.MAX_QUERY_TOKENS:
+                return {'error': f'Please limit your input to <= {consts.MAX_QUERY_TOKENS} tokens!'}
+            if len(cnf) == 0:
+                return {'error': 'Please enter at least one token!'}
+            if len(cnf) > consts.MAX_CLAUSES_IN_CNF:
+                return {'error': f'Please enter at most {consts.MAX_CLAUSES_IN_CNF} disjunctive clauses!'}
+            for disj_clause in cnf:
+                if len(disj_clause) == 0:
+                    return {'error': 'One of the disjunctive clauses appears to be empty, please enter a valid query!'}
+                if len(disj_clause) > consts.MAX_TERMS_IN_DISJ_CLAUSE:
+                    return {'error': f'Please enter at most {consts.MAX_TERMS_IN_DISJ_CLAUSE} terms in each disjunctive clause!'}
+                if any([len(input_ids) == 0 for input_ids in disj_clause]):
+                    return {'error': 'One of the terms appear to be empty, please enter a valid query!'}
         token_idsss, tokensss = [], []
         for disj_ix in range(len(cnf)):
-            tokenizeds = []
             token_idss, tokenss = [], []
             disj_clause = cnf[disj_ix]
             for input_ids in disj_clause:
                 tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-                tokenized = " ".join(['"' + token.replace('Ġ', ' ') + '"' for token in tokens]) + ' ' + str(input_ids)
-                tokenizeds.append(tokenized)
                 token_idss.append(input_ids)
                 tokenss.append(tokens)
-            tokenizedss.append('\n'.join(tokenizeds))
             token_idsss.append(token_idss)
             tokensss.append(tokenss)
-        tokenized = '\n\n'.join(tokenizedss)
 
         if engine == 'python':
             result = self.lm.search_docs(cnf, maxnum)
@@ -330,7 +354,6 @@ class NGramProcessor:
             approx = result['approx']
             message = f'{"Approximately " if approx else ""}{cnt} occurrences found. Displaying the documents of occurrences #{result["idxs"]}'
             docs = []
-            docs_new = []
             for document in result['documents']:
                 token_ids = document['token_ids']
                 spans = [(token_ids, None)]
@@ -344,12 +367,10 @@ class NGramProcessor:
                                 haystack = span[0]
                                 new_spans += self._replace(haystack, needle, label=f'{d}')
                         spans = new_spans
-                doc = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
+                spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
+                doc = {'spans': spans, 'doc_ix': document['doc_ix'], 'doc_len': document['doc_len'], 'disp_len': document['disp_len']}
                 docs.append(doc)
-                doc_new = {'spans': doc, 'doc_ix': document['doc_ix'], 'doc_len': document['doc_len'], 'disp_len': document['disp_len']}
-                docs_new.append(doc_new)
-            output = {'message': message, 'docs': docs, 'documents': docs_new}
-        output['tokenized'] = tokenized
+            output = {'message': message, 'documents': docs}
         output['token_idsss'] = token_idsss
         output['tokensss'] = tokensss
         if 'latency' in result:
@@ -446,7 +467,6 @@ log = open(f'/home/ubuntu/flask_{consts.MODE}.log', 'a')
 app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
-@app.route('/api', methods=['POST'])
 def query():
     data = request.json
     print(data)
@@ -457,7 +477,14 @@ def query():
         query_type = data['query_type']
         corpus = data['corpus']
         engine = 'c++' if 'engine' not in data else data['engine']
-        query = data['query']
+        if ('query' not in data and 'query_ids' not in data) or ('query' in data and 'query_ids' in data):
+            return jsonify({'error': f'[Flask] Exactly one of query and query_ids must be present!'}), 400
+        if 'query' in data:
+            query = data['query']
+            query_ids = None
+        else:
+            query = None
+            query_ids = data['query_ids']
         if query_type == 'search_docs':
             maxnum = data['maxnum']
     except KeyError as e:
@@ -478,9 +505,9 @@ def query():
 
     try:
         if query_type == 'search_docs':
-            result = getattr(processor, query_type)(engine, query, maxnum)
+            result = getattr(processor, query_type)(engine, query, query_ids, maxnum)
         else:
-            result = getattr(processor, query_type)(engine, query)
+            result = getattr(processor, query_type)(engine, query, query_ids)
     except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_traceback)
