@@ -28,10 +28,10 @@ Here are the indexes we serve in the demo and the API endpoint, and some of thei
 
 | Name | Documents | Tokens | Storage | Corpus | Tokenizer |
 | --- | ---: | ---: | ---: | --- | --- |
-| `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | 8.9TiB | RedPajama | Llama |
-| `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | 2.5TiB | Pile-train | Llama |
-| `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | 1.3TiB | C4-train | Llama |
-| `v4_pileval_llama` | 214,670 | 393,769,120 | 2.3GiB | Pile-val | Llama |
+| `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | 8.9TiB | RedPajama | Llama-2 |
+| `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | 2.5TiB | Pile-train | Llama-2 |
+| `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | 1.3TiB | C4-train | Llama-2 |
+| `v4_pileval_llama` | 214,670 | 393,769,120 | 2.3GiB | Pile-val | Llama-2 |
 | `v4_pileval_gpt2` | 214,670 | 383,326,404 | 2.2GiB | Pile-val | GPT-2 |
 | `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | 53GiB | Dolma-sample | OLMo |
 
