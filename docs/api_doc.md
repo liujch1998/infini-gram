@@ -50,7 +50,7 @@ If you find infini-gram useful, please kindly cite our paper:
 We have built the infini-gram indexes on several corpora, and you may query them through the API.
 
 | Name | Corpus | Tokenizer | Documents | Tokens |
-| --- | ---: | ---: | ---: | --- | --- |
+| --- | --- | --- | ---: | ---: |
 | `v4_dolma-v1_6_llama` | Dolma-v1.6 | Llama-2 | 4,367,212,598 | 3,067,858,892,487 |
 | `v4_rpj_llama_s4` | RedPajama | Llama-2 | 931,361,530 | 1,385,942,948,192 |
 | `v4_piletrain_llama` | Pile-train | Llama-2 | 210,607,728 | 383,299,322,520 |
@@ -65,7 +65,7 @@ In general, the request JSON payload should be a dict containing the following f
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `corpus` | The corpus to search in (and the tokenizer to use) | `v4_dolma-v1_6_llama`, `v4_rpj_llama_s4`, `v4_piletrain_llama`, `v4_c4train_llama`, `v4_pileval_llama`, `v4_pileval_gpt2`, `v4_dolmasample_olmo` |
+| `corpus` | The index to search in | `v4_dolma-v1_6_llama`, `v4_rpj_llama_s4`, `v4_piletrain_llama`, `v4_c4train_llama`, `v4_pileval_llama`, `v4_pileval_gpt2`, `v4_dolmasample_olmo` |
 | `query_type` | One of the six supported query types | `count`, `prob`, `ntd`, `infgram_prob`, `infgram_ntd`, `search_docs` |
 | `query` or `query_ids` | The query (semantic depends on query type) | If `query`: Any string. If `query_ids`: A list of integers. (Empty may be OK depending on query type) |
 
@@ -91,7 +91,7 @@ Please see the specific query type below for more details.
 ---
 <br/>
 
-## 1. Count an n-gram (`count`)
+## 1. Count an n-gram (**count**)
 
 This query type counts the number of times the query string appears in the corpus.
 If the query is an empty string, the total number of tokens in the corpus will be returned.
@@ -123,7 +123,7 @@ For example, querying `a` will not give you the count of the letter `a`, but rat
 ---
 <br/>
 
-## 2. Prob of the last token (`prob`)
+## 2. Prob of the last token (**prob**)
 
 This query type computes the n-gram LM probability of the last token of the query conditioning on all preceding tokens.
 It treats your query as an n-gram, counts the full n-gram and also the (n-1)-gram that excludes the last token, and takes the division of the two counts.
@@ -153,7 +153,7 @@ If you query `natural language processing`, the API returns P(`processing` | `na
 ---
 <br/>
 
-## 3. Next-token distribution (`ntd`)
+## 3. Next-token distribution (**ntd**)
 
 This query type treats your query as the (n-1)-gram as in query type 2, and returns the full distribution of the next token.
 
@@ -184,7 +184,7 @@ If the query appears more than 1000 times in the corpus, the distribution return
 ---
 <br/>
 
-## 4. ∞-gram prob (`infgram_prob`)
+## 4. ∞-gram prob (**infgram_prob**)
 
 This query type computes the ∞-gram LM probability of the last token of the query conditioning on all preceding tokens.
 In contrast to n-gram, the ∞-gram LM uses the longest possible (n-1)-gram suffix as context, as long as the count of this (n-1)-gram is non-zero.
@@ -216,7 +216,7 @@ If you query `I love natural language processing`, and `natural language` appear
 ---
 <br/>
 
-## 5. ∞-gram next-token distribution (`infgram_ntd`)
+## 5. ∞-gram next-token distribution (**infgram_ntd**)
 
 This query type computes the full next-token distribution according to the ∞-gram LM.
 It uses the longest possible (n-1)-gram suffix of the query as context, as long as the count of this (n-1)-gram is non-zero.
@@ -247,7 +247,7 @@ If you query `I love natural language`, and `natural language` appears in the co
 ---
 <br/>
 
-## 6. Search documents (`search_docs`)
+## 6. Search documents (**search_docs**)
 
 This query type returns a few random documents in the corpus that match your query.
 
