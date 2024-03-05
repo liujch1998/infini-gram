@@ -9,34 +9,35 @@ title: Home
 
 <p align="center"><sup>1</sup>University of Washington, <sup>2</sup>Allen Institute for AI</p>
 
-<p align="center">[<a href="https://arxiv.org/pdf/2401.17377.pdf">Paper</a>] [<a href="https://hf.co/spaces/liujch1998/infini-gram">Demo</a>] [<a href="/api_doc">API</a>] [<a href="https://github.com/liujch1998/infini-gram">Code</a>] [Pre-built indexes (coming soon)]</p>
+<p align="center">[<a href="/api_doc">API Endpoint</a>] [<a href="https://hf.co/spaces/liujch1998/infini-gram">Web Interface</a>] [<a href="https://arxiv.org/pdf/2401.17377.pdf">Paper</a>] [<a href="https://github.com/liujch1998/infini-gram">Code (coming soon)</a>] [Pre-built indexes (coming soon)]</p>
 
 ---
 <br/>
 
 It’s year 2024, and n-gram LMs are making a comeback!!
 
-We built an n-gram LM with the RedPajama dataset, which contains 1.4 trillion tokens.
-The n in this n-gram LM can be unbounded and arbitrarily large.
-This model contains n-gram counts for about 1 quadrillion (or 1 thousand trillion, or 10^15) unique n-grams, which makes it **the biggest n-gram LM ever built to date**.
+We built an n-gram LM with the union of several open text corpora: {[Dolma](https://huggingface.co/datasets/allenai/dolma), [RedPajama](https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T), [Pile](https://huggingface.co/datasets/EleutherAI/pile), and [C4](https://huggingface.co/datasets/allenai/c4)}.
+The "n" in this n-gram LM can be arbitrarily large.
+This model is trained on **5 trillion tokens**, and contains n-gram counts for about 5 quadrillion (or 5 thousand trillion, or 5x10^15) unique n-grams.
+It is **the biggest n-gram LM ever built to date**.
 
 **Infini-gram** is an engine that efficiently processes n-gram queries with **unbounded n** and **trillion-token massive corpora**.
 It takes merely 20 milliseconds to count an arbitrarily long n-gram in RedPajama (1.4T tokens), while also retrieving all of its occurrence positions in the corpus.
 
 <p align="center">
-  <img src="assets/Screenshot 2024-02-20 at 21.34.16.png" style="width: 100%;" />
+  <img src="assets/Screenshot 2024-03-04 at 21.16.05.png" style="width: 100%;" />
 </p>
 
 Beyond counting n-grams, infini-gram offers more functionalities.
 You can compute n-gram LM probabilities and next-token distributions, which can be handy for text decoding.
 You can also search for documents that contain an n-gram term, one of multiple n-gram terms, all of multiple n-gram terms, or a combination of these (see [CNF expressions](https://en.wikipedia.org/wiki/Conjunctive_normal_form)).
-To explore these functionalities, check out our [HF demo](https://hf.co/spaces/liujch1998/infini-gram).
+To explore these functionalities, check out our [web interface](https://hf.co/spaces/liujch1998/infini-gram).
 
 <p align="center">
-  <img src="assets/Screenshot 2024-02-20 at 21.21.06.png" style="width: 100%;" />
+  <img src="assets/Screenshot 2024-03-04 at 21.18.46.png" style="width: 100%;" />
 </p>
 
-If you'd like to explore infini-gram or use in small volume, please check out our [HF demo](https://hf.co/spaces/liujch1998/infini-gram).
+If you'd like to explore infini-gram or use in small volume, please check out our [web interface](https://hf.co/spaces/liujch1998/infini-gram).
 If you'd like to programmatically query infini-gram, we offer a free and easy-to-use API endpoint, please check out the [API documentation](/api_doc.md).
 
 ---

@@ -1,6 +1,6 @@
 ---
 layout: page
-title: API
+title: API Endpoint
 ---
 
 ## API Documentation
