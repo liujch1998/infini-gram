@@ -33,7 +33,7 @@ DOLMA_API_URL = os.environ.get(f'DOLMA_API_URL_{consts.MODE.upper()}', None)
 
 ENGINES = ['python', 'c++']
 # C++ engine
-SOCKET_IN_BUFFER_SIZE = 2048 # This number is also hard-coded in infini_gram.cpp
+SOCKET_IN_BUFFER_SIZE = 4096 # This number is also hard-coded in infini_gram.cpp
 SOCKET_OUT_BUFFER_SIZE = 65536 # This number is also hard-coded in infini_gram.cpp
 
 class CppProcessor:
@@ -491,7 +491,12 @@ def query():
         return jsonify({'error': f'[Flask] Missing required field: {e}'}), 400
 
     if 'dolma-v1_6' in corpus and DOLMA_API_URL is not None:
-        response = requests.post(DOLMA_API_URL, json=data)
+        try:
+            response = requests.post(DOLMA_API_URL, json=data, timeout=10)
+        except requests.exceptions.Timeout:
+            return jsonify({'error': f'[Flask] Web request timed out. Please try again later.'}), 500
+        except requests.exceptions.RequestException as e:
+            return jsonify({'error': f'[Flask] Web request error: {e}'}), 500
         return jsonify(response.json()), response.status_code
 
     try:

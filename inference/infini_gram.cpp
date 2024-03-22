@@ -10,7 +10,7 @@ using namespace std;
 using json = nlohmann::json;
 
 const int MAX_QUEUE = 42;
-const size_t SOCKET_IN_BUFFER_SIZE = 2048;
+const size_t SOCKET_IN_BUFFER_SIZE = 4096;
 const size_t SOCKET_OUT_BUFFER_SIZE = 65536;
 
 void send_response(int socket, const json& response) {
