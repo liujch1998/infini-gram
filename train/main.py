@@ -200,7 +200,7 @@ for t, ds_path in enumerate(ds_paths):
             cmd = f'./target/release/suffix_array make-part --data-file {ds_path} --parts-dir {parts_dir} --start-byte {s} --end-byte {e}'
             wait.append(os.popen(cmd))
         [x.read() for x in wait]
-    
+
     end_time = time.time()
     print(f'Shard {t} / {len(ds_paths)}: make-part done. Took {end_time-start_time:.2f} seconds')
 

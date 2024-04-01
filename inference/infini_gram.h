@@ -194,6 +194,23 @@ public:
         }
     }
 
+    // Version of methods which can be invoked as thread
+    virtual void find_inplace(const vector<U16>* const input_ids, FindResult* const thread_output) const {
+        *thread_output = find(*input_ids);
+    }
+    virtual void prob_inplace(const vector<U16>* const prompt_ids, const U16 cont_id, ProbResult* const thread_output) const {
+        *thread_output = prob(*prompt_ids, cont_id);
+    }
+    virtual void ntd_inplace(const vector<U16>* const prompt_ids, DistResult* const thread_output) const {
+        *thread_output = ntd(*prompt_ids);
+    }
+    virtual void find_disj_inplace(const vector<vector<U16>>* const disj_clause, const bool approx, FindDisjResult* const thread_output) const {
+        *thread_output = find_disj(*disj_clause, approx);
+    }
+    virtual void find_cnf_inplace(const vector<vector<vector<U16>>>* const cnf, FindCnfResult* const thread_output) const {
+        *thread_output = find_cnf(*cnf);
+    }
+
     virtual FindResult find(const vector<U16> &input_ids, const vector<pair<U64, U64>> &hint_segment_by_shard = {}) const {
 
         assert (hint_segment_by_shard.empty() || hint_segment_by_shard.size() == _num_shards);
@@ -883,21 +900,30 @@ public:
         for (const auto &data_dir : data_dirs) {
             _lms.emplace_back(make_unique<NGramLanguageModeling>(data_dir, eos_token_id, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, consts));
         }
+        _num_lms = _lms.size();
     }
 
     FindResult find(const vector<U16> &ngram, const vector<pair<U64, U64>> &hint_segment_by_shard = {}) const override {
-        vector<FindResult> results;
-        for (const auto &lm : _lms) {
-            results.emplace_back(lm->find(ngram));
+        vector<FindResult> results(_num_lms);
+        vector<thread> threads;
+        for (auto l = 0; l < _num_lms; l++) {
+            threads.push_back(thread(&NGramLanguageModeling::find_inplace, _lms[l].get(), &ngram, &results[l]));
+        }
+        for (auto &thread : threads) {
+            thread.join();
         }
         U64 cnt = accumulate(results.begin(), results.end(), (U64)0, [](U64 a, const FindResult &b) { return a + b.cnt; });
         return FindResult{cnt, {}};
     }
 
     ProbResult prob(const vector<U16> &prompt_ids, const U16 cont_id) const override {
-        vector<ProbResult> results;
-        for (const auto &lm : _lms) {
-            results.emplace_back(lm->prob(prompt_ids, cont_id));
+        vector<ProbResult> results(_num_lms);
+        vector<thread> threads;
+        for (auto l = 0; l < _num_lms; l++) {
+            threads.push_back(thread(&NGramLanguageModeling::prob_inplace, _lms[l].get(), &prompt_ids, cont_id, &results[l]));
+        }
+        for (auto &thread : threads) {
+            thread.join();
         }
         U64 prompt_cnt = accumulate(results.begin(), results.end(), (U64)0, [](U64 a, const ProbResult &b) { return a + b.prompt_cnt; });
         U64 cont_cnt = accumulate(results.begin(), results.end(), (U64)0, [](U64 a, const ProbResult &b) { return a + b.cont_cnt; });
@@ -909,9 +935,13 @@ public:
     }
 
     DistResult ntd(const vector<U16> &prompt_ids) const override {
-        vector<DistResult> results;
-        for (const auto &lm : _lms) {
-            results.emplace_back(lm->ntd(prompt_ids));
+        vector<DistResult> results(_num_lms);
+        vector<thread> threads;
+        for (auto l = 0; l < _num_lms; l++) {
+            threads.push_back(thread(&NGramLanguageModeling::ntd_inplace, _lms[l].get(), &prompt_ids, &results[l]));
+        }
+        for (auto &thread : threads) {
+            thread.join();
         }
         U64 prompt_cnt = accumulate(results.begin(), results.end(), (U64)0, [](U64 a, const DistResult &b) { return a + b.prompt_cnt; });
         map<U16, U64> freq_by_token_id = {};
@@ -937,9 +967,13 @@ public:
 
         if (cnf.size() == 1) {
             auto disj_clause = cnf[0];
-            vector<FindDisjResult> find_results;
-            for (const auto &lm : _lms) {
-                find_results.emplace_back(lm->find_disj(disj_clause, false));
+            vector<FindDisjResult> find_results(_num_lms);
+            vector<thread> threads;
+            for (auto l = 0; l < _num_lms; l++) {
+                threads.push_back(thread(&NGramLanguageModeling::find_disj_inplace, _lms[l].get(), &disj_clause, false, &find_results[l]));
+            }
+            for (auto &thread : threads) {
+                thread.join();
             }
             vector<U64> cnt_by_lm;
             for (const auto &find_result : find_results) {
@@ -978,9 +1012,13 @@ public:
             return SearchDocsResult{documents, idxs, {cnt_total}, cnt_total, false};
         }
 
-        vector<FindCnfResult> find_cnf_results;
-        for (const auto &lm : _lms) {
-            find_cnf_results.emplace_back(lm->find_cnf(cnf));
+        vector<FindCnfResult> find_cnf_results(_num_lms);
+        vector<thread> threads;
+        for (auto l = 0; l < _num_lms; l++) {
+            threads.push_back(thread(&NGramLanguageModeling::find_cnf_inplace, _lms[l].get(), &cnf, &find_cnf_results[l]));
+        }
+        for (auto &thread : threads) {
+            thread.join();
         }
         vector<U64> cnt_by_lm;
         for (const auto &find_cnf_result : find_cnf_results) {
@@ -1022,4 +1060,5 @@ public:
 
 public:
     vector<unique_ptr<NGramLanguageModeling>> _lms;
+    size_t _num_lms;
 };
