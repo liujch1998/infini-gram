@@ -40,7 +40,7 @@ class CppProcessor:
     def __init__(self):
         try:
             os.popen(f'g++ -std=c++17 -O3 infini_gram.cpp -o infini_gram_{consts.MODE}').read()
-            subprocess.Popen(f'./infini_gram_{consts.MODE} {consts.CPP_PORT} {consts.MAX_CNT_FOR_NTD} {consts.MAX_OUTPUT_DOC_TOKENS} {consts.MAX_CLAUSE_FREQ_PER_SHARD} {consts.MAX_DIFF_TOKENS} >> ~/cpp_engine_{consts.MODE}.log 2>&1', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.Popen(f'./infini_gram_{consts.MODE} {consts.CPP_PORT} {consts.MAX_CNT_FOR_NTD} {consts.MAX_OUTPUT_DOC_TOKENS} {consts.MAX_CLAUSE_FREQ_PER_SHARD} {consts.MAX_DIFF_TOKENS} > /dev/null 2>&1', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             time.sleep(2)
             self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             # self.s.settimeout(1.0) # in seconds
