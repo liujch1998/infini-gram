@@ -11,9 +11,9 @@ In your request, please include a JSON payload, and the response will also conta
 
 Most queries are processed within 10s of milliseconds.
 You should receive the response within a fraction of a second.
-If you are experiencing longer latencies, it might be due to network delays.
+If you are experiencing longer latencies, it might be due to network delays or heavy traffic.
 
-**Please do not issue concurrent requests, and kindly wait 0.1 seconds between receiving the response and sending a new request. If our server is overloaded you might receive an error.**
+**Please wrap your requests in an exception-handling loop. We can't guarantee 100% uptime or successful processing of queries, so it may be wise to catch errors and retry the failed requests.**
 
 If you find infini-gram useful, please kindly cite our paper:
 ```bibtex
@@ -30,6 +30,10 @@ If you find infini-gram useful, please kindly cite our paper:
 
 ## Updates
 
+### 2024-04-15
+
+* We're lifting the restriction on concurrent requests and sleeping between requests. Now it should be OK to issue concurrent requests. Though our server is serving a lot of requests and you may experience longer latency.
+
 ### 2024-03-02
 
 * The API now supports inputting a list of token IDs in place of a string as the query. Check out the `query_ids` field.
@@ -39,6 +43,37 @@ If you find infini-gram useful, please kindly cite our paper:
 * The output field `tokenized` is deprecated and replaced by `token_ids` and `tokens` in all query types (except in `search_docs`, where the new fields are `token_idsss` and `tokensss`). The `tokenized` field will be removed on 2024-03-01.
 * For `ntd` and `infgram_ntd` queries, there is now a new output field `prompt_cnt`, and the output field `ntd` is deprecated and replaced by `result_by_token_id`. The `ntd` field will be removed on 2024-03-01.
 * For `search_docs` queries, the output field `docs` is deprecated and replaced by `documents`, which contains additional metadata of the retrieved documents. The `docs` field will be removed on 2024-03-01.
+
+---
+<br/>
+
+## Example usage
+
+**From Shell:**
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"corpus": "v4_rpj_llama_s4", "query_type": "count", "query": "University of Washington"}' https://api.infini-gram.io/
+```
+Outputs:
+```json
+{"count":2349754,"latency":0.73,"token_ids":[3014,310,7660],"tokens":["\u2581University","\u2581of","\u2581Washington"]}
+```
+
+**From Python:**
+```python
+import requests
+
+payload = {
+    'corpus': 'v4_rpj_llama_s4',
+    'query_type': 'count',
+    'query': 'University of Washington',
+}
+result = requests.post('https://api.infini-gram.io/', json=payload).json()
+print(result)
+```
+Outputs:
+```
+{'count': 2349754, 'latency': 0.724, 'token_ids': [3014, 310, 7660], 'tokens': ['▁University', '▁of', '▁Washington']}
+```
 
 ---
 <br/>
