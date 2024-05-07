@@ -160,29 +160,86 @@ class NGramProcessor:
                 return {'error': f'Some item(s) in your query_ids are out-of-range!'}
             input_ids = query_ids
             tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-        return input_ids, tokens
+        return {'input_ids': input_ids, 'tokens': tokens}
+
+    def get_cnf_and_tokensss(self, query, query_ids, allow_empty):
+        if query is not None:
+            assert query_ids is None
+            if not type(query) == str:
+                return {'error': f'query must be a string!'}
+            if len(query) > consts.MAX_QUERY_CHARS:
+                return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
+            if not (' AND ' in query or ' OR ' in query):
+                return self.get_input_ids_and_tokens(query, query_ids, allow_empty)
+            clauses = query.split(' AND ')
+            ngramss = [clause.split(' OR ') for clause in clauses]
+            if len(ngramss) == 0:
+                return {'error': 'Please enter at least one token!'}
+            if len(ngramss) > consts.MAX_CLAUSES_IN_CNF:
+                return {'error': f'Please enter at most {consts.MAX_CLAUSES_IN_CNF} disjunctive clauses!'}
+            for ngrams in ngramss:
+                if len(ngrams) == 0:
+                    return {'error': 'One of the disjunctive clauses appears to be empty, please enter a valid query!'}
+                if len(ngrams) > consts.MAX_TERMS_IN_DISJ_CLAUSE:
+                    return {'error': f'Please enter at most {consts.MAX_TERMS_IN_DISJ_CLAUSE} terms in each disjunctive clause!'}
+                if any([ngram == '' for ngram in ngrams]):
+                    return {'error': 'One of the terms appear to be empty, please enter a valid query!'}
+            cnf = [[self.tokenize(ngram) for ngram in ngrams] for ngrams in ngramss]
+        else:
+            assert query_ids is not None
+            if type(query_ids) == list and all([type(input_id) == int for input_id in query_ids]):
+                return self.get_input_ids_and_tokens(query, query_ids, allow_empty)
+            if (type(cnf) == list and all([type(disj_clause) == list and all([type(input_ids) == list and all([type(input_id) == int for input_id in input_ids]) for input_ids in disj_clause]) for disj_clause in cnf])):
+                cnf = query_ids
+            else:
+                return {'error': f'query_ids must be a list of integers, or a triply-nested list of integers!'}
+            if sum([sum([len(input_ids) for input_ids in disj_clause]) for disj_clause in cnf]) > consts.MAX_QUERY_TOKENS:
+                return {'error': f'Please limit your input to <= {consts.MAX_QUERY_TOKENS} tokens!'}
+            if len(cnf) == 0:
+                return {'error': 'Please enter at least one token!'}
+            if len(cnf) > consts.MAX_CLAUSES_IN_CNF:
+                return {'error': f'Please enter at most {consts.MAX_CLAUSES_IN_CNF} disjunctive clauses!'}
+            for disj_clause in cnf:
+                if len(disj_clause) == 0:
+                    return {'error': 'One of the disjunctive clauses appears to be empty, please enter a valid query!'}
+                if len(disj_clause) > consts.MAX_TERMS_IN_DISJ_CLAUSE:
+                    return {'error': f'Please enter at most {consts.MAX_TERMS_IN_DISJ_CLAUSE} terms in each disjunctive clause!'}
+                if any([len(input_ids) == 0 for input_ids in disj_clause]):
+                    return {'error': 'One of the terms appear to be empty, please enter a valid query!'}
+        tokensss = [[[self.tokenizer.convert_ids_to_tokens(input_ids) for input_ids in disj_clause] for disj_clause in cnf]]
+        return {'cnf': cnf, 'tokensss': tokensss}
 
     def count(self, engine, query, query_ids):
-        result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
-        if type(result) == dict:
+        result = self.get_cnf_and_tokensss(query, query_ids, allow_empty=True)
+        if 'error' in result:
             return result
-        input_ids, tokens = result
 
-        if engine == 'python':
-            result = self.lm.find(input_ids)
-        elif engine == 'c++':
-            result = cpp_processor.process({'query_type': 'count', 'corpus': self.corpus, 'input_ids': input_ids})
+        if 'input_ids' in result and 'tokens' in result:
+            input_ids, tokens = result['input_ids'], result['tokens']
+            if engine == 'python':
+                result = self.lm.find(input_ids)
+            elif engine == 'c++':
+                result = cpp_processor.process({'query_type': 'count', 'corpus': self.corpus, 'input_ids': input_ids})
+            output = {'count': result['cnt']} if 'error' not in result else {'error': result['error']}
+            output['token_ids'] = input_ids
+            output['tokens'] = tokens
+        elif 'cnf' in result and 'tokensss' in result:
+            cnf, tokensss = result['cnf'], result['tokensss']
+            if engine == 'python':
+                result = self.lm.find_cnf(cnf)
+            elif engine == 'c++':
+                result = cpp_processor.process({'query_type': 'count_cnf', 'corpus': self.corpus, 'cnf': cnf})
+            output = {'count': result['cnt']} if 'error' not in result else {'error': result['error']}
+            output['token_ids'] = cnf
+            output['tokens'] = tokensss
 
-        output = {'count': result['cnt']} if 'error' not in result else {'error': result['error']}
-        output['token_ids'] = input_ids
-        output['tokens'] = tokens
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
 
     def prob(self, engine, query, query_ids):
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=False)
-        if type(result) == dict:
+        if 'error' in result:
             return result
         input_ids, tokens = result
 
@@ -200,7 +257,7 @@ class NGramProcessor:
 
     def ntd(self, engine, query, query_ids):
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
-        if type(result) == dict:
+        if 'error' in result:
             return result
         input_ids, tokens = result
 
@@ -227,7 +284,7 @@ class NGramProcessor:
 
     def infgram_prob(self, engine, query, query_ids):
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=False)
-        if type(result) == dict:
+        if 'error' in result:
             return result
         input_ids, tokens = result
 
@@ -251,7 +308,7 @@ class NGramProcessor:
 
     def infgram_ntd(self, engine, query, query_ids):
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
-        if type(result) == dict:
+        if 'error' in result:
             return result
         input_ids, tokens = result
 
@@ -293,54 +350,11 @@ class NGramProcessor:
             return {'error': f'Please request at least one document!'}
         if maxnum > consts.MAX_OUTPUT_NUM_DOCS:
             return {'error': f'Please request at most {consts.MAX_OUTPUT_NUM_DOCS} documents!'}
-        if query is not None:
-            assert query_ids is None
-            if not type(query) == str:
-                return {'error': f'query must be a string!'}
-            if len(query) > consts.MAX_QUERY_CHARS:
-                return {'error': f'Please limit your input to <= {consts.MAX_QUERY_CHARS} characters!'}
-            clauses = query.split(' AND ')
-            ngramss = [clause.split(' OR ') for clause in clauses]
-            if len(ngramss) == 0:
-                return {'error': 'Please enter at least one token!'}
-            if len(ngramss) > consts.MAX_CLAUSES_IN_CNF:
-                return {'error': f'Please enter at most {consts.MAX_CLAUSES_IN_CNF} disjunctive clauses!'}
-            for ngrams in ngramss:
-                if len(ngrams) == 0:
-                    return {'error': 'One of the disjunctive clauses appears to be empty, please enter a valid query!'}
-                if len(ngrams) > consts.MAX_TERMS_IN_DISJ_CLAUSE:
-                    return {'error': f'Please enter at most {consts.MAX_TERMS_IN_DISJ_CLAUSE} terms in each disjunctive clause!'}
-                if any([ngram == '' for ngram in ngrams]):
-                    return {'error': 'One of the terms appear to be empty, please enter a valid query!'}
-            cnf = [[self.tokenize(ngram) for ngram in ngrams] for ngrams in ngramss]
-        else:
-            assert query_ids is not None
-            cnf = query_ids
-            if not (type(cnf) == list and all([type(disj_clause) == list and all([type(input_ids) == list and all([type(input_id) == int for input_id in input_ids]) for input_ids in disj_clause]) for disj_clause in cnf])):
-                return {'error': f'query_ids must be a list of lists of lists of integers!'}
-            if sum([sum([len(input_ids) for input_ids in disj_clause]) for disj_clause in cnf]) > consts.MAX_QUERY_TOKENS:
-                return {'error': f'Please limit your input to <= {consts.MAX_QUERY_TOKENS} tokens!'}
-            if len(cnf) == 0:
-                return {'error': 'Please enter at least one token!'}
-            if len(cnf) > consts.MAX_CLAUSES_IN_CNF:
-                return {'error': f'Please enter at most {consts.MAX_CLAUSES_IN_CNF} disjunctive clauses!'}
-            for disj_clause in cnf:
-                if len(disj_clause) == 0:
-                    return {'error': 'One of the disjunctive clauses appears to be empty, please enter a valid query!'}
-                if len(disj_clause) > consts.MAX_TERMS_IN_DISJ_CLAUSE:
-                    return {'error': f'Please enter at most {consts.MAX_TERMS_IN_DISJ_CLAUSE} terms in each disjunctive clause!'}
-                if any([len(input_ids) == 0 for input_ids in disj_clause]):
-                    return {'error': 'One of the terms appear to be empty, please enter a valid query!'}
-        token_idsss, tokensss = [], []
-        for disj_ix in range(len(cnf)):
-            token_idss, tokenss = [], []
-            disj_clause = cnf[disj_ix]
-            for input_ids in disj_clause:
-                tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-                token_idss.append(input_ids)
-                tokenss.append(tokens)
-            token_idsss.append(token_idss)
-            tokensss.append(tokenss)
+        result = self.get_cnf_and_tokensss(query, query_ids, allow_empty=False)
+        if 'error' in result:
+            return result
+        cnf = result['cnf'] if 'cnf' in result else [[result['input_ids']]]
+        tokensss = result['tokensss'] if 'tokensss' in result else [[result['tokens']]]
 
         if engine == 'python':
             result = self.lm.search_docs(cnf, maxnum)
@@ -371,7 +385,7 @@ class NGramProcessor:
                 doc = {'spans': spans, 'doc_ix': document['doc_ix'], 'doc_len': document['doc_len'], 'disp_len': document['disp_len']}
                 docs.append(doc)
             output = {'message': message, 'documents': docs}
-        output['token_idsss'] = token_idsss
+        output['token_idsss'] = cnf
         output['tokensss'] = tokensss
         if 'latency' in result:
             output['latency'] = result['latency']

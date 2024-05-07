@@ -30,6 +30,10 @@ If you find infini-gram useful, please kindly cite our paper:
 
 ## Updates
 
+### 2024-05-08
+
+* The `count` query now supports CNF inputs, similar to `search_docs`.
+
 ### 2024-04-15
 
 * We're lifting the restriction on concurrent requests and sleeping between requests. Now it should be OK to issue concurrent requests. Though our server is serving a lot of requests and you may experience longer latency.
@@ -131,12 +135,21 @@ Please see the specific query type below for more details.
 This query type counts the number of times the query string appears in the corpus.
 If the query is an empty string, the total number of tokens in the corpus will be returned.
 
-**Example:**
-If you query `natural language processing`, the API returns Cnt(`natural language processing`).
+You can simply enter a string, in which we count the number of occurrences of the string.
+You can also connect multiple strings with the AND/OR operators, in the [CNF format](https://en.wikipedia.org/wiki/Conjunctive_normal_form), in which case we count the number of times where this logical constraint is satisfied.
 
-**Note:**
-The query string will be tokenized into an n-gram, and we only count those occurrences that match the token boundaries.
-For example, querying `a` will not give you the count of the letter `a`, but rather the count of the token `_a`.
+**Examples:**
+
+1. If you query `natural language processing`, the API returns Cnt(`natural language processing`).
+2. If you query `natural language processing AND deep learning`, the API returns the number of co-occurrences of `natural language processing` and `deep learning`.
+3. If you query `natural language processing OR artificial intelligence AND deep learning OR machine learning`, the API returns the number of co-occurrences of {at least one of `natural language processing` / `artificial intelligence`}, and {at least one of `deep learning` / `machine learning`}.
+
+**Notes:**
+
+* The query string will be tokenized into an n-gram, and we only count those occurrences that match the token boundaries. For example, querying `a` will not give you the count of the letter `a`, but rather the count of the token `_a`.
+* When you write a query in CNF, note that **OR has higher precedence than AND** (which is contrary to conventions in boolean algebra).
+* We can only count occurrences where all clauses are separated by no more than 100 tokens.
+* If you query for two or more clauses, and a clause has more than 50000 matches, we will estimate the count from a random subset of all occurrences of that clause. This might cause a zero count on conjuction of some simple clauses (e.g., `birds AND oil`).
 
 **Input parameters:**
 
@@ -144,7 +157,19 @@ For example, querying `a` will not give you the count of the letter `a`, but rat
 | --- | --- | --- |
 | `corpus` | see overview | see overview |
 | `query_type` | see overview | `count` |
-| `query` or `query_ids` | The n-gram to count | Any string or list of integers (empty is OK) |
+| `query` or `query_ids` | The n-gram to count | If `query`: A string (empty is OK), or several non-empty strings connected with the AND/OR operators. If `query_ids`: A list of integers, or a triply-nested list of integers (see below for details). |
+
+If you input `query_ids`, it should be either a list of integers (for simple queries), or a list of list of list of integers (for CNF queries).
+In case of CNF queries:
+The inner-most list is a list of token IDs for a query term;
+The second-level list represent a disjunctive clause, i.e., query terms connected with OR;
+The outer-most list represents a CNF, i.e., disjuctive clauses connected with AND.
+
+Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2 tokenizer):
+* `natural language processing` <==> `[5613, 4086, 9068]`, or `[[[5613, 4086, 9068]]]` if you will
+* `natural language processing OR deep learning` <==> `[[[5613, 4086, 9068], [6483, 6509]]]`
+* `natural language processing AND deep learning` <==> `[[[5613, 4086, 9068]], [[6483, 6509]]]`
+* `natural language processing OR artificial intelligence AND deep learning OR machine learning` <==> `[[[5613, 4086, 9068], [23116, 21082]], [[6483, 6509], [4933, 6509]]]`
 
 **Output parameters:**
 
@@ -302,7 +327,7 @@ If you want another batch of random documents, simply submit the same query agai
 * When you write a query in CNF, note that **OR has higher precedence than AND** (which is contrary to conventions in boolean algebra).
 * If the document is too long, it will be truncated to 5000 tokens.
 * We can only include documents where all clauses are separated by no more than 100 tokens.
-* If you query for two or more clauses, and a clause has more than 50000 matches, we will estimate the count from a random subset of all documents containing that clause. This might cause a zero count on conjuction of some simple clauses (e.g., birds AND oil).
+* If you query for two or more clauses, and a clause has more than 50000 matches, we will estimate the count from a random subset of all documents containing that clause. This might cause a zero count on conjuction of some simple clauses (e.g., `birds AND oil`).
 * The number of found documents may contain duplicates (e.g., if a document contains your query term twice, it may be counted twice).
 
 **Input parameters:**
@@ -311,16 +336,17 @@ If you want another batch of random documents, simply submit the same query agai
 | --- | --- | --- |
 | `corpus` | see overview | see overview |
 | `query_type` | see overview | `search_docs` |
-| `query` or `query_ids` | The search query | If `query`: A non-empty string, or several such strings connected with the AND/OR operators. If `query_ids`: A triply-nested list of integers (see below for details). |
+| `query` or `query_ids` | The search query | If `query`: A non-empty string, or several such strings connected with the AND/OR operators. If `query_ids`: A list of integers, or a triply-nested list of integers (see below for details). |
 | `maxnum` | The max number of documents to return | An integer in range [1, 10] |
 
-If you input `query_ids`, it should be a list of list of list of integers.
-The inner-most list is a list of token IDs for a query term.
-The second-level list represent a disjunctive clause, i.e., query terms connected with OR.
+If you input `query_ids`, it should be either a list of integers (for simple queries), or a list of list of list of integers (for CNF queries).
+In case of CNF queries:
+The inner-most list is a list of token IDs for a query term;
+The second-level list represent a disjunctive clause, i.e., query terms connected with OR;
 The outer-most list represents a CNF, i.e., disjuctive clauses connected with AND.
 
 Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2 tokenizer):
-* `natural language processing` <==> `[[[5613, 4086, 9068]]]`
+* `natural language processing` <==> `[5613, 4086, 9068]`, or `[[[5613, 4086, 9068]]]` if you will
 * `natural language processing OR deep learning` <==> `[[[5613, 4086, 9068], [6483, 6509]]]`
 * `natural language processing AND deep learning` <==> `[[[5613, 4086, 9068]], [[6483, 6509]]]`
 * `natural language processing OR artificial intelligence AND deep learning OR machine learning` <==> `[[[5613, 4086, 9068], [23116, 21082]], [[6483, 6509], [4933, 6509]]]`
@@ -329,8 +355,8 @@ Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2
 
 | Key | Description | Value Range |
 | --- | --- | --- |
-| `token_idsss` | The token IDs in the tokenized query | A list of list of `token_ids` |
-| `tokensss` | The tokens in the tokenized query | A list of list of `tokens` |
+| `token_idsss` | The token IDs in the tokenized query | A list of integers, or a triply-nested list of integers |
+| `tokensss` | The tokens in the tokenized query | A list of strings, or a triply-nested list of strings |
 | `latency` | see overview | see overview |
 | `documents` | The list of documents that match the query | A list of Documents, where each Document is a dict with the following keys: `doc_ix` (int, the index of this document in the corpus), `doc_len` (int, the total number of tokens in this document), `disp_len` (int, the number of tokens returned after truncation), `spans` (a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches; if this span does not match any clause, this element is NULL) |
 | `message` | A message describing the total number of matched documents | A string |

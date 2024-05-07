@@ -145,6 +145,8 @@ int main(int argc, char const *argv[]) {
             if (query_type == "search_docs") {
                 cnf = request["cnf"].get<vector<vector<vector<U16>>>>();
                 maxnum = request["maxnum"];
+            } else if (query_type == "count_cnf") {
+                cnf = request["cnf"].get<vector<vector<vector<U16>>>>();
             } else {
                 input_ids = request["input_ids"].get<vector<U16>>();
             }
@@ -174,6 +176,11 @@ int main(int argc, char const *argv[]) {
                 response = {
                     {"cnt", find_result.cnt},
                     {"segments", find_result.segment_by_shard},
+                };
+            } else if (query_type == "count_cnf") {
+                FindCnfResult find_cnf_result = lm->find_cnf(cnf);
+                response = {
+                    {"cnt", find_cnf_result.cnt},
                 };
             } else if (query_type == "prob") {
                 vector<U16> prompt_ids = {input_ids.begin(), input_ids.end() - 1};
