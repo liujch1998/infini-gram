@@ -355,8 +355,8 @@ Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2
 
 | Key | Description | Value Range |
 | --- | --- | --- |
-| `token_idsss` | The token IDs in the tokenized query | A list of integers, or a triply-nested list of integers |
-| `tokensss` | The tokens in the tokenized query | A list of strings, or a triply-nested list of strings |
+| `token_ids` | The token IDs in the tokenized query | A list of integers, or a triply-nested list of integers |
+| `tokens` | The tokens in the tokenized query | A list of strings, or a triply-nested list of strings |
 | `latency` | see overview | see overview |
 | `documents` | The list of documents that match the query | A list of Documents, where each Document is a dict with the following keys: `doc_ix` (int, the index of this document in the corpus), `doc_len` (int, the total number of tokens in this document), `disp_len` (int, the number of tokens returned after truncation), `spans` (a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches; if this span does not match any clause, this element is NULL) |
 | `message` | A message describing the total number of matched documents | A string |

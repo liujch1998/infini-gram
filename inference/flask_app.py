@@ -189,9 +189,8 @@ class NGramProcessor:
             assert query_ids is not None
             if type(query_ids) == list and all([type(input_id) == int for input_id in query_ids]):
                 return self.get_input_ids_and_tokens(query, query_ids, allow_empty)
-            if (type(cnf) == list and all([type(disj_clause) == list and all([type(input_ids) == list and all([type(input_id) == int for input_id in input_ids]) for input_ids in disj_clause]) for disj_clause in cnf])):
-                cnf = query_ids
-            else:
+            cnf = query_ids
+            if not (type(cnf) == list and all([type(disj_clause) == list and all([type(input_ids) == list and all([type(input_id) == int for input_id in input_ids]) for input_ids in disj_clause]) for disj_clause in cnf])):
                 return {'error': f'query_ids must be a list of integers, or a triply-nested list of integers!'}
             if sum([sum([len(input_ids) for input_ids in disj_clause]) for disj_clause in cnf]) > consts.MAX_QUERY_TOKENS:
                 return {'error': f'Please limit your input to <= {consts.MAX_QUERY_TOKENS} tokens!'}
@@ -206,7 +205,7 @@ class NGramProcessor:
                     return {'error': f'Please enter at most {consts.MAX_TERMS_IN_DISJ_CLAUSE} terms in each disjunctive clause!'}
                 if any([len(input_ids) == 0 for input_ids in disj_clause]):
                     return {'error': 'One of the terms appear to be empty, please enter a valid query!'}
-        tokensss = [[[self.tokenizer.convert_ids_to_tokens(input_ids) for input_ids in disj_clause] for disj_clause in cnf]]
+        tokensss = [[self.tokenizer.convert_ids_to_tokens(input_ids) for input_ids in disj_clause] for disj_clause in cnf]
         return {'cnf': cnf, 'tokensss': tokensss}
 
     def count(self, engine, query, query_ids):
@@ -350,11 +349,11 @@ class NGramProcessor:
             return {'error': f'Please request at least one document!'}
         if maxnum > consts.MAX_OUTPUT_NUM_DOCS:
             return {'error': f'Please request at most {consts.MAX_OUTPUT_NUM_DOCS} documents!'}
-        result = self.get_cnf_and_tokensss(query, query_ids, allow_empty=False)
-        if 'error' in result:
-            return result
-        cnf = result['cnf'] if 'cnf' in result else [[result['input_ids']]]
-        tokensss = result['tokensss'] if 'tokensss' in result else [[result['tokens']]]
+        parse_result = self.get_cnf_and_tokensss(query, query_ids, allow_empty=False)
+        if 'error' in parse_result:
+            return parse_result
+
+        cnf = [[parse_result['input_ids']]] if 'input_ids' in parse_result else parse_result['cnf']
 
         if engine == 'python':
             result = self.lm.search_docs(cnf, maxnum)
@@ -385,8 +384,8 @@ class NGramProcessor:
                 doc = {'spans': spans, 'doc_ix': document['doc_ix'], 'doc_len': document['doc_len'], 'disp_len': document['disp_len']}
                 docs.append(doc)
             output = {'message': message, 'documents': docs}
-        output['token_idsss'] = cnf
-        output['tokensss'] = tokensss
+        output['token_ids'] = parse_result['input_ids'] if 'input_ids' in parse_result else parse_result['cnf']
+        output['tokens'] = parse_result['tokens'] if 'tokens' in parse_result else parse_result['tokensss']
         if 'latency' in result:
             output['latency'] = result['latency']
         return output
