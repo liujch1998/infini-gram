@@ -240,7 +240,7 @@ class NGramProcessor:
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=False)
         if 'error' in result:
             return result
-        input_ids, tokens = result
+        input_ids, tokens = result['input_ids'], result['tokens']
 
         if engine == 'python':
             result = self.lm.prob(prompt_ids=input_ids[:-1], cont_id=input_ids[-1])
@@ -258,7 +258,7 @@ class NGramProcessor:
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
         if 'error' in result:
             return result
-        input_ids, tokens = result
+        input_ids, tokens = result['input_ids'], result['tokens']
 
         if engine == 'python':
             result = self.lm.ntd(prompt_ids=input_ids)
@@ -285,7 +285,7 @@ class NGramProcessor:
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=False)
         if 'error' in result:
             return result
-        input_ids, tokens = result
+        input_ids, tokens = result['input_ids'], result['tokens']
 
         if engine == 'python':
             result = self.lm.infgram_prob(prompt_ids=input_ids[:-1], cont_id=input_ids[-1])
@@ -309,7 +309,7 @@ class NGramProcessor:
         result = self.get_input_ids_and_tokens(query, query_ids, allow_empty=True)
         if 'error' in result:
             return result
-        input_ids, tokens = result
+        input_ids, tokens = result['input_ids'], result['tokens']
 
         if engine == 'python':
             result = self.lm.infgram_ntd(prompt_ids=input_ids)
