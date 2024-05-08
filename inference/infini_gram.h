@@ -561,7 +561,7 @@ public:
         return SearchDocsResult{documents, idxs, find_cnf_result.cnt_by_clause, find_cnf_result.cnt, find_cnf_result.approx};
     }
 
-    FindCnfResult find_cnf(const vector<vector<vector<U16>>> &cnf) const {
+    virtual FindCnfResult find_cnf(const vector<vector<vector<U16>>> &cnf) const {
 
         assert (cnf.size() > 0);
 
@@ -1056,6 +1056,27 @@ public:
         }
 
         return SearchDocsResult{documents, idxs, find_cnf_results[0].cnt_by_clause, cnt_total, approx}; // NOTE: The cnt_by_clause here is a placeholder, since we do not use it in the union case
+    }
+
+    FindCnfResult find_cnf(const vector<vector<vector<U16>>> &cnf) const override {
+        vector<FindCnfResult> results(_num_lms);
+        vector<thread> threads;
+        for (auto l = 0; l < _num_lms; l++) {
+            threads.push_back(thread(&NGramLanguageModeling::find_cnf_inplace, _lms[l].get(), &cnf, &results[l]));
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        U64 cnt = 0;
+        vector<U64> cnt_by_clause(cnf.size(), 0);
+        for (const auto &result : results) {
+            cnt += result.cnt;
+            for (auto c = 0; c < cnf.size(); c++) {
+                cnt_by_clause[c] += result.cnt_by_clause[c];
+            }
+        }
+        bool approx = any_of(results.begin(), results.end(), [](const FindCnfResult &result) { return result.approx; });
+        return FindCnfResult{cnt_by_clause, cnt, {}, {}, {}, approx};
     }
 
 public:

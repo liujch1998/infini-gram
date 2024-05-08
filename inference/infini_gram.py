@@ -757,6 +757,14 @@ class NGramLanguageModelingUnion(NGramLanguageModeling):
         latency = (end_time - start_time)*1000
         return {'documents': documents, 'idxs': idxs, 'cnt': cnt_total, 'approx': approx, 'latency': latency}
 
+    def find_cnf(self, cnf):
+        find_results = [lm.find_cnf(cnf) for lm in self.lms]
+        return {
+            'cnt_by_clause': [sum([find_result['cnt_by_clause'][d] for find_result in find_results]) for d in range(len(cnf))],
+            'cnt': sum([find_result['cnt'] for find_result in find_results]),
+            'approx': any([find_result['approx'] for find_result in find_results]),
+        }
+
 
 def main():
     tokenizer_type = 'llama'
