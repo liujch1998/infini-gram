@@ -1,0 +1,7 @@
+[
+    {
+        "name": "v4_pileval_llama",
+        "dir": "/gscratch/xlab/liujc/ha-infini-gram/index/v4_pileval_llama",
+        "tokenizer": "llama"
+    }
+]

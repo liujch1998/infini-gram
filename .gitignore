@@ -1,4 +1,3 @@
 /.vscode/
 /index
 **/__pycache__/
-**/*.so
