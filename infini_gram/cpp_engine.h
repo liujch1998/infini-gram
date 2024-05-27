@@ -196,6 +196,7 @@ public:
         for (auto shard : _shards) {
             munmap(shard.ds, shard.ds_size);
             munmap(shard.sa, shard.tok_cnt * shard.ptr_size);
+            munmap(shard.od, shard.doc_cnt * 8);
         }
     }
 
@@ -916,11 +917,11 @@ public:
         _num_lms = _lms.size();
     }
 
-    FindResult find(const vector<U16> &ngram, const vector<pair<U64, U64>> &hint_segment_by_shard = {}) const override {
+    FindResult find(const vector<U16> &input_ids, const vector<pair<U64, U64>> &hint_segment_by_shard = {}) const override {
         vector<FindResult> results(_num_lms);
         vector<thread> threads;
         for (auto l = 0; l < _num_lms; l++) {
-            threads.push_back(thread(&NGramLanguageModeling::find_inplace, _lms[l].get(), &ngram, &results[l]));
+            threads.push_back(thread(&NGramLanguageModeling::find_inplace, _lms[l].get(), &input_ids, &results[l]));
         }
         for (auto &thread : threads) {
             thread.join();

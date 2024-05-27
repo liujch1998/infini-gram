@@ -1,7 +1,7 @@
 import numpy as np
 import random
 import time
-from engine import InfiniGramEngine
+from ..engine import InfiniGramEngine
 
 def main():
     engine = InfiniGramEngine(
