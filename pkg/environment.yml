@@ -1,0 +1,7 @@
+name: infini-gram-pkg
+dependencies:
+  - python=3.8
+  - pip:
+    - pybind11
+    - cibuildwheel
+    - twine

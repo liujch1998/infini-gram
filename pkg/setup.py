@@ -1,4 +1,6 @@
 # python setup.py bdist_wheel
+# cibuildwheel --output-dir wheelhouse
+# twine upload dist/*
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
@@ -24,16 +26,17 @@ ext_modules = [
             # Path to pybind11 headers
             get_pybind_include(),
         ],
-        language='c++'
+        language='c++',
+        extra_compile_args=['-std=c++17'],
     ),
 ]
 
 setup(
-    name='example_package_liujch1998',
+    name='infini_gram',
     version='0.0.1',
     author='Jiacheng (Gary) Liu',
     author_email='liujc@cs.washington.edu',
-    description='A Python package',
+    description='A Python package for infini-gram',
     # long_description=open('README.md').read(),
     # long_description_content_type='text/markdown',
     ext_modules=ext_modules,
@@ -54,5 +57,5 @@ setup(
     #     'Programming Language :: Python :: 3.10',
     #     'Programming Language :: C++',
     # ],
-    python_requires='>=3.11',
+    python_requires='>=3.8',
 )
