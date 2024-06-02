@@ -1,4 +1,10 @@
+---
+layout: page
+title: LICENSE
+---
+
 Infini-gram
+
 Academic Software License (UW# 50057 & 50058)
 
 Infini-gram (“Software”) was developed at the University of Washington. Software enables efficiently building and serving massive n-gram language models, and retrieving documents from massive text corpora. The University of Washington has pending patent application that covers Software.
@@ -18,11 +24,13 @@ The UW and the developers allow You at Your Institution to modify, perform and d
 9. Any risk associated with using the Software at Your Institution is with You and Your Institution. The Software is experimental in nature and is made available as an educational and research courtesy “AS IS,” without obligation by UW to provide accompanying services or support.
 10. You agree to cite the following paper in any research publications describing research that used the Software:
 
+```bibtex
 @article{Liu2024InfiniGram,
   title={Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens},
   author={Liu, Jiacheng and Min, Sewon and Zettlemoyer, Luke and Choi, Yejin and Hajishirzi, Hannaneh},
   journal={arXiv preprint arXiv:2401.17377},
   year={2024}
 }
+```
 
 UW AND THE DEVELOPERS EXPRESSLY DISCLAIM ANY AND ALL WARRANTIES REGARDING THE SOFTWARE, WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES PERTAINING TO NON-INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
