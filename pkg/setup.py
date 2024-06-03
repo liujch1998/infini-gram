@@ -1,6 +1,8 @@
 # python setup.py bdist_wheel
+# twine upload --repository testpypi dist/*
+
 # cibuildwheel --output-dir wheelhouse
-# twine upload dist/*
+# twine upload --repository testpypi wheelhouse/*
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
@@ -33,18 +35,18 @@ ext_modules = [
 
 setup(
     name='infini_gram',
-    version='0.0.1',
+    version='0.0.5',
     author='Jiacheng (Gary) Liu',
     author_email='liujc@cs.washington.edu',
     description='A Python package for infini-gram',
-    # long_description=open('README.md').read(),
-    # long_description_content_type='text/markdown',
+    long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     ext_modules=ext_modules,
     cmdclass={'build_ext': build_ext},
     zip_safe=False,
-    install_requires=[
-        'pybind11>=2.5.0',
-    ],
+    # install_requires=[
+    #     'pybind11>=2.5.0',
+    # ],
     packages=setuptools.find_packages(),
     # package_data={
     #     'infini_gram': ['engine.py', '*.so'],
@@ -57,5 +59,8 @@ setup(
     #     'Programming Language :: Python :: 3.10',
     #     'Programming Language :: C++',
     # ],
+    # license_files=['LICENSE'],
+    # include_package_data=True,
+    license='UW Academic Software License',
     python_requires='>=3.8',
 )

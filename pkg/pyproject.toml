@@ -1,3 +1,9 @@
 [build-system]
 requires = ["setuptools>=42", "wheel", "pybind11"]
 build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+build = "cp3*-manylinux*"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "i686"]
