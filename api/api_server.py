@@ -1,14 +1,13 @@
 import argparse
 from flask import Flask, jsonify, request
 import json
-import numpy as np
 import os
 import requests
 import sys
 import time
 import traceback
 from transformers import AutoTokenizer
-from engine import InfiniGramEngine
+from infini_gram.engine import InfiniGramEngine
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--MODE', type=str, default='api', choices=['api', 'dev', 'demo'])
@@ -37,9 +36,8 @@ class Processor:
         if self.tokenizer_type == 'gpt2':
             self.tokenizer = AutoTokenizer.from_pretrained('gpt2', add_bos_token=False, add_eos_token=False)
         elif self.tokenizer_type == 'llama':
-            self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=os.environ['HF_TOKEN_DOWNLOAD'], add_bos_token=False, add_eos_token=False)
+            self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", add_bos_token=False, add_eos_token=False)
         elif self.tokenizer_type == 'olmo':
-            import hf_olmo
             self.tokenizer = AutoTokenizer.from_pretrained("allenai/OLMo-7B", add_bos_token=False, add_eos_token=False)
         else:
             raise NotImplementedError
@@ -198,11 +196,12 @@ class Processor:
         return spans
 
 PROCESSOR_BY_INDEX = {}
-with open('api_config_test.json') as f:
+with open('api_config.json') as f:
     configs = json.load(f)
     for config in configs:
         PROCESSOR_BY_INDEX[config['name']] = Processor(config)
 
+# save log under home directory
 log = open(f'flask_{args.MODE}.log', 'a')
 app = Flask(__name__)
 

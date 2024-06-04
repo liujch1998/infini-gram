@@ -1,0 +1,10 @@
+name: infini-gram-api
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11.8
+  - pip:
+    - transformers==4.40.2
+    - flask
+    # - infini-gram==0.0.5 # install separately
