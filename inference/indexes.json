@@ -37,5 +37,11 @@
         "dir": "/data-v4-dolmasample-olmo/v4_dolmasample_olmo",
         "tokenizer": "olmo",
         "eos_token_id": 50279
+    },
+    {
+        "corpus": "v4_fineweb-v1_1_0-350b_llama",
+        "dir": "/data-v4-fineweb-v1_1_0-350b_llama/v4_fineweb-v1_1_0-350b_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
     }
 ]

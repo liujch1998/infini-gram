@@ -7,4 +7,5 @@ dependencies:
   - pip:
     - transformers==4.40.2
     - flask
+    - pybind
     # - infini-gram==0.0.5 # install separately

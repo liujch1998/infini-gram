@@ -7,11 +7,13 @@ import sys
 import time
 import traceback
 from transformers import AutoTokenizer
+sys.path.append('../pkg')
 from infini_gram.engine import InfiniGramEngine
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--MODE', type=str, default='api', choices=['api', 'dev', 'demo'])
 parser.add_argument('--FLASK_PORT', type=int, default=5000)
+parser.add_argument('--CONFIG_FILE', type=str, default='api_config.json')
 # API limits
 parser.add_argument('--MAX_QUERY_CHARS', type=int, default=1000)
 parser.add_argument('--MAX_QUERY_TOKENS', type=int, default=500)
@@ -38,7 +40,7 @@ class Processor:
         elif self.tokenizer_type == 'llama':
             self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", add_bos_token=False, add_eos_token=False)
         elif self.tokenizer_type == 'olmo':
-            self.tokenizer = AutoTokenizer.from_pretrained("allenai/OLMo-7B", add_bos_token=False, add_eos_token=False)
+            self.tokenizer = AutoTokenizer.from_pretrained("allenai/OLMo-7B-hf", add_bos_token=False, add_eos_token=False)
         else:
             raise NotImplementedError
 
@@ -196,13 +198,13 @@ class Processor:
         return spans
 
 PROCESSOR_BY_INDEX = {}
-with open('api_config.json') as f:
+with open(args.CONFIG_FILE) as f:
     configs = json.load(f)
     for config in configs:
         PROCESSOR_BY_INDEX[config['name']] = Processor(config)
 
 # save log under home directory
-log = open(f'flask_{args.MODE}.log', 'a')
+log = open(f'/home/ubuntu/logs/flask_{args.MODE}.log', 'a')
 app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
@@ -224,15 +226,10 @@ def query():
 
     try:
         query_type = data['query_type']
-        del data['query_type']
-        if 'corpus' in data:
-            index = data['corpus']
-            del data['corpus']
-        else:
-            index = data['index']
-            del data['index']
-        if 'engine' in data:
-            del data['engine']
+        index = data['corpus'] if 'corpus' in data else data['index']
+        for key in ['query_type', 'corpus', 'index', 'engine', 'source', 'timestamp']:
+            if key in data:
+                del data[key]
         if ('query' not in data and 'query_ids' not in data) or ('query' in data and 'query_ids' in data):
             return jsonify({'error': f'[Flask] Exactly one of query and query_ids must be present!'}), 400
         if 'query' in data:
