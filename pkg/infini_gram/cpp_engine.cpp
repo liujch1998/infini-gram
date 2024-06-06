@@ -8,15 +8,6 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 
 PYBIND11_MODULE(cpp_engine, m) {
-    py::class_<Config>(m, "Config")
-        .def(py::init<U64, U64, U64, U64, size_t, size_t, size_t>())
-        .def_readwrite("MAX_CNT_FOR_NTD", &Config::MAX_CNT_FOR_NTD)
-        .def_readwrite("MAX_OUTPUT_DOC_TOKENS", &Config::MAX_OUTPUT_DOC_TOKENS)
-        .def_readwrite("MAX_CLAUSE_FREQ_PER_SHARD", &Config::MAX_CLAUSE_FREQ_PER_SHARD)
-        .def_readwrite("MAX_DIFF_TOKENS", &Config::MAX_DIFF_TOKENS)
-        .def_readwrite("ds_prefetch_depth", &Config::ds_prefetch_depth)
-        .def_readwrite("sa_prefetch_depth", &Config::sa_prefetch_depth)
-        .def_readwrite("od_prefetch_depth", &Config::od_prefetch_depth);
 
     py::class_<CountResult>(m, "CountResult")
         .def_readwrite("count", &CountResult::count)
@@ -48,29 +39,31 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def_readwrite("approx", &InfgramDistResult::approx)
         .def_readwrite("suffix_len", &InfgramDistResult::suffix_len);
 
-    py::class_<SearchDocResult>(m, "SearchDocResult")
-        .def_readwrite("doc_ix", &SearchDocResult::doc_ix)
-        .def_readwrite("doc_len", &SearchDocResult::doc_len)
-        .def_readwrite("disp_len", &SearchDocResult::disp_len)
-        .def_readwrite("token_ids", &SearchDocResult::token_ids);
+    py::class_<DocResult>(m, "DocResult")
+        .def_readwrite("doc_ix", &DocResult::doc_ix)
+        .def_readwrite("doc_len", &DocResult::doc_len)
+        .def_readwrite("disp_len", &DocResult::disp_len)
+        .def_readwrite("metadata", &DocResult::metadata);
+        .def_readwrite("token_ids", &DocResult::token_ids);
 
     py::class_<SearchDocsResult>(m, "SearchDocsResult")
         .def_readwrite("cnt", &SearchDocsResult::cnt)
         .def_readwrite("approx", &SearchDocsResult::approx)
-        .def_readwrite("cnt_by_clause", &SearchDocsResult::cnt_by_clause)
         .def_readwrite("idxs", &SearchDocsResult::idxs)
-        .def_readwrite("documents", &SearchDocsResult::documents);
+        .def_readwrite("docs", &SearchDocsResult::docs);
 
-    py::class_<NGramLanguageModeling>(m, "NGramLanguageModeling")
+    py::class_<InfiniGramEngine>(m, "InfiniGramEngine")
         .def(py::init<const string, const U16, const Config>())
-        .def("count", &NGramLanguageModeling::count, "input_ids"_a)
-        .def("count_cnf", &NGramLanguageModeling::count_cnf, "cnf"_a)
-        .def("prob", &NGramLanguageModeling::prob, "prompt_ids"_a, "cont_id"_a)
-        .def("ntd", &NGramLanguageModeling::ntd, "prompt_ids"_a)
-        .def("infgram_prob", &NGramLanguageModeling::infgram_prob, "prompt_ids"_a, "cont_id"_a)
-        .def("infgram_ntd", &NGramLanguageModeling::infgram_ntd, "prompt_ids"_a)
-        .def("search_docs", &NGramLanguageModeling::search_docs, "cnf"_a, "maxnum"_a);
-
-    py::class_<NGramLanguageModelingUnion, NGramLanguageModeling>(m, "NGramLanguageModelingUnion")
-        .def(py::init<const vector<string>, const U16, const Config>());
+        .def("count", &InfiniGramEngine::count, "input_ids"_a)
+        .def("count_cnf", &InfiniGramEngine::count_cnf, "cnf"_a, "max_clause_freq"_a, "max_diff_tokens"_a)
+        .def("prob", &InfiniGramEngine::prob, "prompt_ids"_a, "cont_id"_a)
+        .def("ntd", &InfiniGramEngine::ntd, "prompt_ids"_a, "max_support"_a)
+        .def("infgram_prob", &InfiniGramEngine::infgram_prob, "prompt_ids"_a, "cont_id"_a)
+        .def("infgram_ntd", &InfiniGramEngine::infgram_ntd, "prompt_ids"_a, "max_support"_a)
+        .def("search_docs", &InfiniGramEngine::search_docs, "cnf"_a, "maxnum"_a, "max_disp_len"_a)
+        .def("search_docs_cnf", &InfiniGramEngine::search_docs_cnf, "cnf"_a, "maxnum"_a, "max_disp_len"_a, "max_clause_freq"_a, "max_diff_tokens"_a)
+        .def("find", &InfiniGramEngine::find, "input_ids"_a)
+        .def("find_cnf", &InfiniGramEngine::find_cnf, "cnf"_a, "max_clause_freq"_a, "max_diff_tokens"_a)
+        .def("get_doc_by_rank", &InfiniGramEngine::get_doc_by_rank, "s"_a, "rank"_a, "max_disp_len"_a)
+        .def("get_doc_by_ptr", &InfiniGramEngine::get_doc_by_ptr, "s"_a, "ptr"_a, "max_disp_len"_a);
 }

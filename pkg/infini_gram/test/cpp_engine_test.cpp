@@ -5,11 +5,10 @@
 void print_search_docs_result(const SearchDocsResult &result) {
     cout << "cnt: " << result.cnt << endl;
     cout << "approx: " << result.approx << endl;
-    cout << "cnt_by_clause: [ "; for (auto cnt : result.cnt_by_clause) cout << cnt << " "; cout << "]" << endl;
     cout << "idxs: [ "; for (auto idx : result.idxs) cout << idx << " "; cout << "]" << endl;
-    cout << "documents: " << endl;
-    for (auto &doc : result.documents) {
-        cout << "  { doc_ix: " << doc.doc_ix << ", doc_len: " << doc.doc_len << ", disp_len: " << doc.disp_len << ", token_ids: [ ";
+    cout << "docs: " << endl;
+    for (auto &doc : result.docs) {
+        cout << "  { doc_ix: " << doc.doc_ix << ", doc_len: " << doc.doc_len << ", disp_len: " << doc.disp_len << ", metadata: " << doc.metadata << ", token_ids: [ ";
         for (auto token_id : doc.token_ids) cout << token_id << " ";
         cout << "] }" << endl;
     }
@@ -19,26 +18,23 @@ void print_search_docs_result(const SearchDocsResult &result) {
 int main() {
     srand(time(0));
     std::mt19937 gen(19260817);
-    std::uniform_int_distribution<U16> dis(0, 30000);
+    std::uniform_int_distribution<U16> dis(0, 65534); // left inclusive, right inclusive
 
-    const Config config = {
-        .MAX_CNT_FOR_NTD = 1000,
-        .MAX_OUTPUT_DOC_TOKENS = 100,
-        .MAX_CLAUSE_FREQ_PER_SHARD = 50000,
-        .MAX_DIFF_TOKENS = 100,
-        .ds_prefetch_depth = 1,
-        .sa_prefetch_depth = 3,
-        .od_prefetch_depth = 3,
-    };
+    U64 max_support = 10;
+    U64 max_clause_freq = 50000;
+    U64 max_diff_tokens = 10;
+    U64 max_disp_len = 20;
+    size_t maxnum = 2;
 
-    auto lm = NGramLanguageModeling("../../../index/v4_pileval_llama", 2, config);
-    // auto lm = NGramLanguageModelingUnion({"/gscratch/xlab/liujc/ha-infini-gram/index/v4_pileval_llama", "/gscratch/xlab/liujc/ha-infini-gram/index/v4_pileval_llama"}, 2, config);
+    // auto engine = InfiniGramEngine({"../../../index/v4_pileval_llama"}, 2);
+    auto engine = InfiniGramEngine({"../../../index/v4_dolma-v1_6-sample_llama"}, 2);
+    // auto engine = InfiniGramEngine({"../../../index/v4_pileval_llama", "../../../index/v4_dolma-v1_6-sample_llama"}, 2);
 
     {
         cout << "count, empty query" << endl;
         vector<U16> input_ids = {};
         cout << "input_ids: [ "; for (auto id : input_ids) cout << id << " "; cout << "]" << endl;
-        auto result = lm.count(input_ids);
+        auto result = engine.count(input_ids);
         cout << "count: " << result.count << endl;
         cout << "approx: " << result.approx << endl;
         cout << endl;
@@ -47,7 +43,7 @@ int main() {
         cout << "count, simple query" << endl;
         vector<U16> input_ids = {5613, 4086, 9068}; // natural language processing
         cout << "input_ids: [ "; for (auto id : input_ids) cout << id << " "; cout << "]" << endl;
-        auto result = lm.count(input_ids);
+        auto result = engine.count(input_ids);
         cout << "count: " << result.count << endl;
         cout << "approx: " << result.approx << endl;
         cout << endl;
@@ -56,7 +52,7 @@ int main() {
         cout << "count, simple query, zero count" << endl;
         vector<U16> input_ids = {dis(gen), dis(gen), dis(gen)}; // * * *
         cout << "input_ids: [ "; for (auto id : input_ids) cout << id << " "; cout << "]" << endl;
-        auto result = lm.count(input_ids);
+        auto result = engine.count(input_ids);
         cout << "count: " << result.count << endl;
         cout << "approx: " << result.approx << endl;
         cout << endl;
@@ -66,7 +62,7 @@ int main() {
         vector<vector<vector<U16>>> cnf = {
             {{5613, 4086, 9068}, {23116, 21082}}, // natural language processing OR artificial intelligence
         };
-        auto result = lm.count_cnf(cnf);
+        auto result = engine.count_cnf(cnf, max_clause_freq, max_diff_tokens);
         cout << "count: " << result.count << endl;
         cout << "approx: " << result.approx << endl;
         cout << endl;
@@ -77,7 +73,7 @@ int main() {
             {{5613, 4086, 9068}}, // natural language processing
             {{6483, 6509}}, // deep learning
         };
-        auto result = lm.count_cnf(cnf);
+        auto result = engine.count_cnf(cnf, max_clause_freq, max_diff_tokens);
         cout << "count: " << result.count << endl;
         cout << "approx: " << result.approx << endl;
         cout << endl;
@@ -88,7 +84,7 @@ int main() {
             {{5613, 4086, 9068}, {23116, 21082}}, // natural language processing OR artificial intelligence
             {{6483, 6509}}, // deep learning
         };
-        auto result = lm.count_cnf(cnf);
+        auto result = engine.count_cnf(cnf, max_clause_freq, max_diff_tokens);
         cout << "count: " << result.count << endl;
         cout << "approx: " << result.approx << endl;
         cout << endl;
@@ -99,7 +95,7 @@ int main() {
         U16 cont_id = 9068; // processing
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
         cout << "cont_id: " << cont_id << endl;
-        auto result = lm.prob(prompt_ids, cont_id);
+        auto result = engine.prob(prompt_ids, cont_id);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "cont_cnt: " << result.cont_cnt << endl;
         cout << "prob: " << result.prob << endl;
@@ -111,7 +107,7 @@ int main() {
         U16 cont_id = 9068; // processing
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
         cout << "cont_id: " << cont_id << endl;
-        auto result = lm.prob(prompt_ids, cont_id);
+        auto result = engine.prob(prompt_ids, cont_id);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "cont_cnt: " << result.cont_cnt << endl;
         cout << "prob: " << result.prob << endl;
@@ -123,7 +119,7 @@ int main() {
         U16 cont_id = dis(gen); // *
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
         cout << "cont_id: " << cont_id << endl;
-        auto result = lm.prob(prompt_ids, cont_id);
+        auto result = engine.prob(prompt_ids, cont_id);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "cont_cnt: " << result.cont_cnt << endl;
         cout << "prob: " << result.prob << endl;
@@ -135,7 +131,7 @@ int main() {
         U16 cont_id = 9068; // processing
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
         cout << "cont_id: " << cont_id << endl;
-        auto result = lm.prob(prompt_ids, cont_id);
+        auto result = engine.prob(prompt_ids, cont_id);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "cont_cnt: " << result.cont_cnt << endl;
         cout << "prob: " << result.prob << endl;
@@ -145,7 +141,7 @@ int main() {
         cout << "ntd, exact" << endl;
         vector<U16> prompt_ids = {5613, 4086}; // natural language
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
-        auto result = lm.ntd(prompt_ids);
+        auto result = engine.ntd(prompt_ids, max_support);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "result_by_token_id: { "; for (auto &[token_id, r] : result.result_by_token_id) cout << token_id << " => { cont_cnt: " << r.cont_cnt << ", prob: " << r.prob << " }, "; cout << "}" << endl;
         cout << "approx: " << result.approx << endl;
@@ -155,7 +151,7 @@ int main() {
         cout << "ntd, approx" << endl;
         vector<U16> prompt_ids = {5613}; // natural
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
-        auto result = lm.ntd(prompt_ids);
+        auto result = engine.ntd(prompt_ids, max_support);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "result_by_token_id: { "; for (auto &[token_id, r] : result.result_by_token_id) cout << token_id << " => { cont_cnt: " << r.cont_cnt << ", prob: " << r.prob << " }, "; cout << "}" << endl;
         cout << "approx: " << result.approx << endl;
@@ -165,7 +161,7 @@ int main() {
         cout << "ntd, empty prompt" << endl;
         vector<U16> prompt_ids = {};
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
-        auto result = lm.ntd(prompt_ids);
+        auto result = engine.ntd(prompt_ids, max_support);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "result_by_token_id: { "; for (auto &[token_id, r] : result.result_by_token_id) cout << token_id << " => { cont_cnt: " << r.cont_cnt << ", prob: " << r.prob << " }, "; cout << "}" << endl;
         cout << "approx: " << result.approx << endl;
@@ -177,7 +173,7 @@ int main() {
         U16 cont_id = 9068; // processing
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
         cout << "cont_id: " << cont_id << endl;
-        auto result = lm.infgram_prob(prompt_ids, cont_id);
+        auto result = engine.infgram_prob(prompt_ids, cont_id);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "cont_cnt: " << result.cont_cnt << endl;
         cout << "prob: " << result.prob << endl;
@@ -190,7 +186,7 @@ int main() {
         U16 cont_id = 9068; // processing
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
         cout << "cont_id: " << cont_id << endl;
-        auto result = lm.infgram_prob(prompt_ids, cont_id);
+        auto result = engine.infgram_prob(prompt_ids, cont_id);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "cont_cnt: " << result.cont_cnt << endl;
         cout << "prob: " << result.prob << endl;
@@ -203,7 +199,7 @@ int main() {
         U16 cont_id = 9068; // processing
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
         cout << "cont_id: " << cont_id << endl;
-        auto result = lm.infgram_prob(prompt_ids, cont_id);
+        auto result = engine.infgram_prob(prompt_ids, cont_id);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "cont_cnt: " << result.cont_cnt << endl;
         cout << "prob: " << result.prob << endl;
@@ -214,7 +210,7 @@ int main() {
         cout << "infgram_ntd" << endl;
         vector<U16> prompt_ids = {dis(gen), dis(gen), 5613, 4086}; // * * natural language
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
-        auto result = lm.infgram_ntd(prompt_ids);
+        auto result = engine.infgram_ntd(prompt_ids, max_support);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "result_by_token_id: { "; for (auto &[token_id, r] : result.result_by_token_id) cout << token_id << " => { cont_cnt: " << r.cont_cnt << ", prob: " << r.prob << " }, "; cout << "}" << endl;
         cout << "approx: " << result.approx << endl;
@@ -225,7 +221,7 @@ int main() {
         cout << "infgram_ntd, whole context" << endl;
         vector<U16> prompt_ids = {5613, 4086}; // natural language
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
-        auto result = lm.infgram_ntd(prompt_ids);
+        auto result = engine.infgram_ntd(prompt_ids, max_support);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "result_by_token_id: { "; for (auto &[token_id, r] : result.result_by_token_id) cout << token_id << " => { cont_cnt: " << r.cont_cnt << ", prob: " << r.prob << " }, "; cout << "}" << endl;
         cout << "approx: " << result.approx << endl;
@@ -236,7 +232,7 @@ int main() {
         cout << "infgram_ntd, no context" << endl;
         vector<U16> prompt_ids = {65534}; // *
         cout << "prompt_ids: [ "; for (auto id : prompt_ids) cout << id << " "; cout << "]" << endl;
-        auto result = lm.infgram_ntd(prompt_ids);
+        auto result = engine.infgram_ntd(prompt_ids, max_support);
         cout << "prompt_cnt: " << result.prompt_cnt << endl;
         cout << "result_by_token_id: { "; for (auto &[token_id, r] : result.result_by_token_id) cout << token_id << " => { cont_cnt: " << r.cont_cnt << ", prob: " << r.prob << " }, "; cout << "}" << endl;
         cout << "approx: " << result.approx << endl;
@@ -245,23 +241,23 @@ int main() {
     }
     {
         cout << "search_docs, empty query" << endl;
-        vector<vector<vector<U16>>> cnf = {{{}}};
-        size_t maxnum = 1;
-        auto result = lm.search_docs(cnf, maxnum);
+        vector<U16> input_ids = {};
+        cout << "input_ids: [ "; for (auto id : input_ids) cout << id << " "; cout << "]" << endl;
+        auto result = engine.search_docs(input_ids, maxnum, max_disp_len);
         print_search_docs_result(result);
     }
     {
         cout << "search_docs, simple query" << endl;
-        vector<vector<vector<U16>>> cnf = {{{5613, 4086, 9068}}}; // natural language processing
-        size_t maxnum = 5;
-        auto result = lm.search_docs(cnf, maxnum);
+        vector<U16> input_ids = {5613, 4086, 9068}; // natural language processing
+        cout << "input_ids: [ "; for (auto id : input_ids) cout << id << " "; cout << "]" << endl;
+        auto result = engine.search_docs(input_ids, maxnum, max_disp_len);
         print_search_docs_result(result);
     }
     {
         cout << "search_docs, simple query, zero count" << endl;
-        vector<vector<vector<U16>>> cnf = {{{dis(gen), dis(gen), dis(gen)}}}; // * * *
-        size_t maxnum = 1;
-        auto result = lm.search_docs(cnf, maxnum);
+        vector<U16> input_ids = {dis(gen), dis(gen), dis(gen)}; // * * *
+        cout << "input_ids: [ "; for (auto id : input_ids) cout << id << " "; cout << "]" << endl;
+        auto result = engine.search_docs(input_ids, maxnum, max_disp_len);
         print_search_docs_result(result);
     }
     {
@@ -269,8 +265,7 @@ int main() {
         vector<vector<vector<U16>>> cnf = {
             {{5613, 4086, 9068}, {23116, 21082}}, // natural language processing OR artificial intelligence
         };
-        size_t maxnum = 1;
-        auto result = lm.search_docs(cnf, maxnum);
+        auto result = engine.search_docs_cnf(cnf, maxnum, max_disp_len, max_clause_freq, max_diff_tokens);
         print_search_docs_result(result);
     }
     {
@@ -279,8 +274,7 @@ int main() {
             {{5613, 4086, 9068}}, // natural language processing
             {{6483, 6509}}, // deep learning
         };
-        size_t maxnum = 1;
-        auto result = lm.search_docs(cnf, maxnum);
+        auto result = engine.search_docs_cnf(cnf, maxnum, max_disp_len, max_clause_freq, max_diff_tokens);
         print_search_docs_result(result);
     }
     {
@@ -289,8 +283,7 @@ int main() {
             {{5613, 4086, 9068}, {23116, 21082}}, // natural language processing OR artificial intelligence
             {{6483, 6509}}, // deep learning
         };
-        size_t maxnum = 1;
-        auto result = lm.search_docs(cnf, maxnum);
+        auto result = engine.search_docs_cnf(cnf, maxnum, max_disp_len, max_clause_freq, max_diff_tokens);
         print_search_docs_result(result);
     }
 
