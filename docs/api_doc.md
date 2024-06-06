@@ -186,7 +186,7 @@ Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2
 | `tokens` | see overview | see overview |
 | `latency` | see overview | see overview |
 | `count` | The count of the query n-gram | A non-negative integer |
-| `approx` | Whether the count is approximate | 0 (for exact) and 1 (for approximate) |
+| `approx` | Whether the count is approximate | False (for exact) and True (for approximate) |
 
 ---
 <br/>
@@ -248,7 +248,7 @@ If the query appears more than 1000 times in the corpus, the distribution return
 | `latency` | see overview | see overview |
 | `prompt_cnt` | The count of the (n-1)-gram | A non-negative integer |
 | `result_by_token_id` | The next token distribution | A dict that maps token IDs to results. Each result is a dict with the following keys: `token` (str, the token string), `prob` (float, the probability of this token), `cont_cnt` (int, the count of the n-gram formed by appending this token) |
-| `approx` | Whether the distribution is approximate | 0 (for exact) or 1 (for approximate) |
+| `approx` | Whether the distribution is approximate | False (for exact) and True (for approximate) |
 
 ---
 <br/>
@@ -312,7 +312,7 @@ If you query `I love natural language`, and `natural language` appears in the co
 | `latency` | see overview | see overview |
 | `prompt_cnt` | The count of the (n-1)-gram (where (n-1) is the number of tokens in the longest suffix) | A non-negative integer |
 | `result_by_token_id` | The next token distribution | A dict that maps token IDs to results. Each result is a dict with the following keys: `token` (str, the token string), `prob` (float, the probability of this token), `cont_cnt` (int, the count of the n-gram formed by appending this token) |
-| `approx` | Whether the distribution is approximate | 0 (for exact) or 1 (for approximate) |
+| `approx` | Whether the distribution is approximate | False (for exact) and True (for approximate) |
 | `suffix_len` | The number of tokens in the longest suffix used to compute the ∞-gram probability | A non-negative integer |
 | `longest_suffix` | The longest suffix used to compute the ∞-gram probability | A string (may be empty) |
 
