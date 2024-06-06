@@ -101,14 +101,13 @@ struct SearchDocsResult {
     vector<DocResult> docs;
 };
 
-class InfiniGramEngine {
+class Engine {
 
 public:
 
-    InfiniGramEngine(
+    Engine(
         const vector<string> index_dirs, const U16 eos_token_id,
-        const bool load_to_ram = false,
-        const size_t ds_prefetch_depth = 1, const size_t sa_prefetch_depth = 3, const size_t od_prefetch_depth = 3)
+        const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth)
         : _eos_token_id(eos_token_id), _load_to_ram(load_to_ram), _ds_prefetch_depth(ds_prefetch_depth), _sa_prefetch_depth(sa_prefetch_depth), _od_prefetch_depth(od_prefetch_depth) {
 
         assert_little_endian();
@@ -117,7 +116,7 @@ public:
             assert (fs::exists(index_dir));
 
             vector<string> ds_paths, sa_paths, od_paths, mt_paths, om_paths;
-            for (const auto & entry : fs::directory_iterator(index_dir)) {
+            for (const auto &entry : fs::directory_iterator(index_dir)) {
                 if (entry.path().string().find("tokenized") != string::npos) {
                     ds_paths.push_back(entry.path());
                 } else if (entry.path().string().find("table") != string::npos) {
@@ -140,7 +139,7 @@ public:
             assert (mt_paths.size() == 0 || mt_paths.size() == ds_paths.size());
             assert (om_paths.size() == mt_paths.size());
 
-            for (auto s = 0; s < ds_paths.size(); s++) {
+            for (size_t s = 0; s < ds_paths.size(); s++) {
                 auto [ds, ds_size] = load_file(ds_paths[s]);
                 auto [sa, sa_size] = load_file(sa_paths[s]);
                 auto [od, od_size] = load_file(od_paths[s]);
@@ -171,8 +170,8 @@ public:
         assert (_num_shards > 0);
     }
 
-    ~InfiniGramEngine() {
-        for (auto shard : _shards) {
+    ~Engine() {
+        for (auto &shard : _shards) {
             unload_file(shard.ds, shard.ds_size);
             unload_file(shard.sa, shard.tok_cnt * shard.ptr_size);
             unload_file(shard.od, shard.doc_cnt * sizeof(U64));
@@ -216,6 +215,13 @@ public:
         }
     }
 
+    void find_inplace(const vector<U16>* const input_ids, FindResult* const thread_output) const {
+        *thread_output = find(*input_ids);
+    }
+    void find_disj_inplace(const vector<vector<U16>>* const disj_clause, const U64 max_clause_freq, FindDisjResult* const thread_output) const {
+        *thread_output = find_disj(*disj_clause, max_clause_freq);
+    }
+
     FindResult find(const vector<U16> &input_ids) const {
 
         vector<pair<U64, U64>> hint_segment_by_shard;
@@ -235,10 +241,10 @@ public:
         vector<U64> start_thread_outputs(_num_shards);
         vector<U64> end_thread_outputs(_num_shards);
         vector<thread> threads;
-        for (auto s = 0; s < _num_shards; s++) {
-            threads.emplace_back(&InfiniGramEngine::_find_thread, this, s,
+        for (size_t s = 0; s < _num_shards; s++) {
+            threads.emplace_back(&Engine::_find_thread, this, s,
                 &input_ids, input_buf, num_bytes, hint_segment_by_shard[s], true, &start_thread_outputs[s]);
-            threads.emplace_back(&InfiniGramEngine::_find_thread, this, s,
+            threads.emplace_back(&Engine::_find_thread, this, s,
                 &input_ids, input_buf, num_bytes, hint_segment_by_shard[s], false, &end_thread_outputs[s]);
         }
         for (auto &thread : threads) {
@@ -247,7 +253,7 @@ public:
 
         U64 cnt = 0;
         vector<pair<U64, U64>> segment_by_shard;
-        for (auto s = 0; s < _num_shards; s++) {
+        for (size_t s = 0; s < _num_shards; s++) {
             assert (start_thread_outputs[s] <= end_thread_outputs[s]);
             cnt += end_thread_outputs[s] - start_thread_outputs[s];
             segment_by_shard.push_back({start_thread_outputs[s], end_thread_outputs[s]});
@@ -308,16 +314,21 @@ public:
 
     FindDisjResult find_disj(const vector<vector<U16>> &disj_clause, const U64 max_clause_freq) const {
 
-        vector<FindResult> find_result_by_term;
-        for (const auto &term : disj_clause) {
-            find_result_by_term.push_back(find(term));
+        vector<FindResult> find_result_by_term(disj_clause.size());
+        vector<thread> find_threads;
+        for (size_t t = 0; t < disj_clause.size(); t++) {
+            find_threads.emplace_back(&Engine::find_inplace, this, &disj_clause[t], &find_result_by_term[t]);
         }
+        for (auto &thread : find_threads) {
+            thread.join();
+        }
+
         vector<U64> cnt_by_shard(_num_shards);
         vector<vector<pair<U64, U64>>> segment_by_term_by_shard(_num_shards);
         vector<double> subsampling_factor_by_shard(_num_shards);
         vector<thread> threads;
-        for (auto s = 0; s < _num_shards; s++) {
-            threads.emplace_back(&InfiniGramEngine::_find_disj_thread, this, s,
+        for (size_t s = 0; s < _num_shards; s++) {
+            threads.emplace_back(&Engine::_find_disj_thread, this, s,
                 &find_result_by_term, max_clause_freq / _num_shards, &cnt_by_shard[s], &segment_by_term_by_shard[s], &subsampling_factor_by_shard[s]);
         }
         for (auto &thread : threads) {
@@ -378,10 +389,13 @@ public:
 
         assert (cnf.size() > 0);
 
-        vector<FindDisjResult> find_disj_result_by_clause;
-        for (const auto &clause : cnf) {
-            auto find_disj_result = find_disj(clause, max_clause_freq);
-            find_disj_result_by_clause.push_back(find_disj_result);
+        vector<FindDisjResult> find_disj_result_by_clause(cnf.size());
+        vector<thread> find_threads;
+        for (size_t c = 0; c < cnf.size(); c++) {
+            find_threads.emplace_back(&Engine::find_disj_inplace, this, &cnf[c], max_clause_freq, &find_disj_result_by_clause[c]);
+        }
+        for (auto &thread : find_threads) {
+            thread.join();
         }
         for (const auto &find_disj_result : find_disj_result_by_clause) {
             if (find_disj_result.cnt == 0) {
@@ -393,8 +407,8 @@ public:
         vector<vector<pair<U64, U64>>> valid_ptr_ranges_by_shard(_num_shards);
         vector<double> subsampling_factor_by_shard(_num_shards);
         vector<thread> threads;
-        for (auto s = 0; s < _num_shards; s++) {
-            threads.emplace_back(&InfiniGramEngine::_find_cnf_thread, this, s,
+        for (size_t s = 0; s < _num_shards; s++) {
+            threads.emplace_back(&Engine::_find_cnf_thread, this, s,
                 &find_disj_result_by_clause, max_diff_tokens, &cnt_by_shard[s], &valid_ptr_ranges_by_shard[s], &subsampling_factor_by_shard[s]);
         }
         for (auto &thread : threads) {
@@ -404,7 +418,7 @@ public:
         U64 cnt = accumulate(cnt_by_shard.begin(), cnt_by_shard.end(), (U64)0);
         bool approx = any_of(subsampling_factor_by_shard.begin(), subsampling_factor_by_shard.end(), [](double f) { return f != 1.0; });
         vector<vector<U64>> ptrs_by_shard(_num_shards);
-        for (auto s = 0; s < _num_shards; s++) {
+        for (size_t s = 0; s < _num_shards; s++) {
             for (const auto &[l, r] : valid_ptr_ranges_by_shard[s]) {
                 ptrs_by_shard[s].push_back(l);
             }
@@ -439,7 +453,7 @@ public:
 
         // maintain valid ptr ranges
         // if there are Q terms and each term has M matches in the shard, the complexity is O(Q * M * log(M))
-        for (auto d = 1; d < find_disj_result_by_clause.size(); d++) {
+        for (size_t d = 1; d < find_disj_result_by_clause.size(); d++) {
             auto &find_disj_result = find_disj_result_by_clause[d];
             vector<U64> ptrs;
             for (const auto &[start, end] : find_disj_result.segment_by_term_by_shard[s]) {
@@ -448,7 +462,7 @@ public:
             }
             sort(ptrs.begin(), ptrs.end());
             vector<pair<U64, U64>> new_valid_ptr_ranges;
-            for (const auto& [l, r] : valid_ptr_ranges) {
+            for (const auto &[l, r] : valid_ptr_ranges) {
                 auto lo = _bin_search(ptrs, r).first; // find the last match that is < r
                 U64 new_l = lo == (U64)-1 ? -1 : min(l, ptrs[lo]);
                 auto hi = _bin_search(ptrs, l).second; // find the first match that is >= l
@@ -471,7 +485,7 @@ public:
         // remove ptr ranges that cross document boundary
         vector<pair<U64, U64>> new_valid_ptr_ranges;
         const vector<U8> doc_sep = {0xff, 0xff};
-        for (const auto& [l, r] : valid_ptr_ranges) {
+        for (const auto &[l, r] : valid_ptr_ranges) {
             auto it = search(shard.ds + l, shard.ds + r, doc_sep.begin(), doc_sep.end());
             if (it == shard.ds + r) {
                 new_valid_ptr_ranges.push_back({l, r});
@@ -525,27 +539,27 @@ public:
 
         vector<map<U16, U64>> freq_by_token_id_by_shard(_num_shards);
         vector<thread> threads;
-        for (auto s = 0; s < _num_shards; s++) {
-            threads.emplace_back(&InfiniGramEngine::_get_freq_by_token_id_approx, this,
+        for (size_t s = 0; s < _num_shards; s++) {
+            threads.emplace_back(&Engine::_get_freq_by_token_id_approx, this,
                 s, prompt_ids.size() * sizeof(U16), prompt_find_result.segment_by_shard[s], unit, nullptr, nullptr, &freq_by_token_id_by_shard[s]);
         }
         for (auto &thread : threads) {
             thread.join();
         }
         map<U16, U64> freq_by_token_id = {};
-        for (auto s = 0; s < _num_shards; s++) {
-            for (auto& [token_id, freq] : freq_by_token_id_by_shard[s]) {
+        for (size_t s = 0; s < _num_shards; s++) {
+            for (const auto &[token_id, freq] : freq_by_token_id_by_shard[s]) {
                 freq_by_token_id[token_id] += freq;
             }
         }
 
         U64 prompt_cnt = 0;
-        for (auto& [token_id, freq] : freq_by_token_id) {
+        for (const auto &[token_id, freq] : freq_by_token_id) {
             prompt_cnt += freq;
         }
         assert (prompt_cnt == prompt_find_result.cnt);
         map<U16, DistTokenResult> result_by_token_id = {};
-        for (auto& [token_id, freq] : freq_by_token_id) {
+        for (const auto &[token_id, freq] : freq_by_token_id) {
             result_by_token_id[token_id] = DistTokenResult{freq, (double)freq / prompt_cnt};
         }
 
@@ -599,17 +613,17 @@ public:
         U64 mi = (start + end) >> 1;
         pair<U64, U64> left_segment = {start, mi}, right_segment = {mi, end};
         map<U16, U64> left_thread_output = {}, right_thread_output = {};
-        auto left_thread = thread(&InfiniGramEngine::_get_freq_by_token_id_approx, this,
+        auto left_thread = thread(&Engine::_get_freq_by_token_id_approx, this,
             s, num_bytes, left_segment, unit, &new_token_start, nullptr, &left_thread_output);
-        auto right_thread = thread(&InfiniGramEngine::_get_freq_by_token_id_approx, this,
+        auto right_thread = thread(&Engine::_get_freq_by_token_id_approx, this,
             s, num_bytes, right_segment, unit, nullptr, &new_token_end, &right_thread_output);
         left_thread.join();
         right_thread.join();
         // TODO: This map merge is not efficient. Need to hack into the endianness of token_ids.
-        for (auto& [token_id, freq] : left_thread_output) {
+        for (const auto &[token_id, freq] : left_thread_output) {
             (*out_freq_by_token_id)[token_id] += freq;
         }
-        for (auto& [token_id, freq] : right_thread_output) {
+        for (const auto &[token_id, freq] : right_thread_output) {
             (*out_freq_by_token_id)[token_id] += freq;
         }
     }
@@ -774,6 +788,7 @@ public:
         assert (s < _num_shards);
         const auto &shard = _shards[s];
         assert (ptr < shard.ds_size);
+        assert (ptr % sizeof(U16) == 0);
 
         U64 max_prepend_tokens = max_disp_len / 2;
         U64 max_append_tokens = (max_disp_len + 1) / 2;
@@ -791,20 +806,21 @@ public:
             }
         }
 
-        U64 doc_ix = 0; for (auto _ = 0; _ < s; _++) doc_ix += _shards[_].doc_cnt; doc_ix += lo;
+        U64 local_doc_ix = lo;
+        U64 doc_ix = 0; for (size_t _ = 0; _ < s; _++) doc_ix += _shards[_].doc_cnt; doc_ix += local_doc_ix;
 
-        U64 doc_start_ptr = _convert_doc_ix_to_ptr(shard, lo) + sizeof(U16); // +2 because we want to skip the document separator
-        U64 doc_end_ptr = _convert_doc_ix_to_ptr(shard, lo + 1);
+        U64 doc_start_ptr = _convert_doc_ix_to_ptr(shard, local_doc_ix) + sizeof(U16); // +2 because we want to skip the document separator
+        U64 doc_end_ptr = _convert_doc_ix_to_ptr(shard, local_doc_ix + 1);
         U64 doc_len = (doc_end_ptr - doc_start_ptr) / sizeof(U16);
 
-        U64 disp_start_ptr = max(doc_start_ptr, ptr - sizeof(U16) * max_prepend_tokens);
+        U64 disp_start_ptr = max(doc_start_ptr, ptr < sizeof(U16) * max_prepend_tokens ? (U64)0 : (ptr - sizeof(U16) * max_prepend_tokens));
         U64 disp_end_ptr = min(doc_end_ptr, ptr + sizeof(U16) * max_append_tokens);
         U64 disp_len = (disp_end_ptr - disp_start_ptr) / sizeof(U16);
 
         string metadata = "";
         if (shard.mt) {
-            U64 meta_start_ptr = _convert_doc_ix_to_meta_ptr(shard, lo);
-            U64 meta_end_ptr = _convert_doc_ix_to_meta_ptr(shard, lo + 1);
+            U64 meta_start_ptr = _convert_doc_ix_to_meta_ptr(shard, local_doc_ix);
+            U64 meta_end_ptr = _convert_doc_ix_to_meta_ptr(shard, local_doc_ix + 1);
             vector<U8> meta_chars(shard.mt + meta_start_ptr, shard.mt + meta_end_ptr);
             metadata = string(meta_chars.begin(), meta_chars.end());
         }
@@ -812,6 +828,61 @@ public:
         vector<U16> token_ids(reinterpret_cast<U16*>(shard.ds + disp_start_ptr), reinterpret_cast<U16*>(shard.ds + disp_end_ptr));
 
         return DocResult{ .doc_ix = doc_ix, .doc_len = doc_len, .disp_len = disp_len, .metadata = metadata, .token_ids = token_ids, };
+    }
+
+    DocResult get_doc_by_ix(const U64 doc_ix, const U64 max_disp_len) const {
+
+        assert (doc_ix < get_total_doc_cnt());
+
+        size_t s = 0;
+        U64 local_doc_ix = doc_ix;
+        while (local_doc_ix >= _shards[s].doc_cnt) {
+            local_doc_ix -= _shards[s].doc_cnt;
+            s++;
+        }
+        const auto &shard = _shards[s];
+
+        U64 doc_start_ptr = _convert_doc_ix_to_ptr(shard, local_doc_ix) + sizeof(U16); // +2 because we want to skip the document separator
+        U64 doc_end_ptr = _convert_doc_ix_to_ptr(shard, local_doc_ix + 1);
+        U64 doc_len = (doc_end_ptr - doc_start_ptr) / sizeof(U16);
+
+        U64 disp_start_ptr = doc_start_ptr;
+        U64 disp_end_ptr = min(doc_end_ptr, doc_start_ptr + sizeof(U16) * max_disp_len);
+        U64 disp_len = (disp_end_ptr - disp_start_ptr) / sizeof(U16);
+
+        string metadata = "";
+        if (shard.mt) {
+            U64 meta_start_ptr = _convert_doc_ix_to_meta_ptr(shard, local_doc_ix);
+            U64 meta_end_ptr = _convert_doc_ix_to_meta_ptr(shard, local_doc_ix + 1);
+            vector<U8> meta_chars(shard.mt + meta_start_ptr, shard.mt + meta_end_ptr);
+            metadata = string(meta_chars.begin(), meta_chars.end());
+        }
+
+        vector<U16> token_ids(reinterpret_cast<U16*>(shard.ds + disp_start_ptr), reinterpret_cast<U16*>(shard.ds + disp_end_ptr));
+
+        return DocResult{ .doc_ix = doc_ix, .doc_len = doc_len, .disp_len = disp_len, .metadata = metadata, .token_ids = token_ids, };
+    }
+
+    size_t get_num_shards() const {
+        return _num_shards;
+    }
+
+    U64 get_tok_cnt(const size_t s) const {
+        assert (s < _num_shards);
+        return _shards[s].tok_cnt;
+    }
+
+    U64 get_ds_size(const size_t s) const {
+        assert (s < _num_shards);
+        return _shards[s].ds_size;
+    }
+
+    U64 get_total_doc_cnt() const {
+        U64 total_doc_cnt = 0;
+        for (const auto &shard : _shards) {
+            total_doc_cnt += shard.doc_cnt;
+        }
+        return total_doc_cnt;
     }
 
 private:

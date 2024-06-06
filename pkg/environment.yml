@@ -5,3 +5,4 @@ dependencies:
     - pybind11
     - cibuildwheel
     - twine
+  - numpy
