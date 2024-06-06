@@ -30,6 +30,13 @@ If you find infini-gram useful, please kindly cite our paper:
 
 ## Updates
 
+### 2024-06-06
+
+* The input field `corpus` is renamed to `index`. Support for `corpus` will be discontinued sometime in the future. Please update your scripts accordingly.
+* `count`, `ntd`, and `infgram_ntd` queries now returns an extra field `approx`.
+* `infgram_prob` and `infgram_ntd` queries now returns an extra field `suffix_len`.
+* For `search_docs` queries, each returned document now contains an extra field `token_ids`.
+
 ### 2024-05-08
 
 * The `count` query now supports CNF inputs, similar to `search_docs`.
@@ -55,11 +62,11 @@ If you find infini-gram useful, please kindly cite our paper:
 
 **From Shell:**
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"corpus": "v4_rpj_llama_s4", "query_type": "count", "query": "University of Washington"}' https://api.infini-gram.io/
+curl -X POST -H "Content-Type: application/json" -d '{"index": "v4_rpj_llama_s4", "query_type": "count", "query": "University of Washington"}' https://api.infini-gram.io/
 ```
 Outputs:
 ```json
-{"count":2349754,"latency":0.73,"token_ids":[3014,310,7660],"tokens":["\u2581University","\u2581of","\u2581Washington"]}
+{"count":2349754,"approx":false,"latency":0.73,"token_ids":[3014,310,7660],"tokens":["\u2581University","\u2581of","\u2581Washington"]}
 ```
 
 **From Python:**
@@ -67,7 +74,7 @@ Outputs:
 import requests
 
 payload = {
-    'corpus': 'v4_rpj_llama_s4',
+    'index': 'v4_rpj_llama_s4',
     'query_type': 'count',
     'query': 'University of Washington',
 }
@@ -76,7 +83,7 @@ print(result)
 ```
 Outputs:
 ```
-{'count': 2349754, 'latency': 0.724, 'token_ids': [3014, 310, 7660], 'tokens': ['▁University', '▁of', '▁Washington']}
+{'count': 2349754, 'approx': False, 'latency': 0.724, 'token_ids': [3014, 310, 7660], 'tokens': ['▁University', '▁of', '▁Washington']}
 ```
 
 ---
@@ -88,15 +95,15 @@ Outputs:
 
 We have built the infini-gram indexes on several corpora, and you may query them through the API.
 
-| Name | Corpus | Tokenizer | Documents | Tokens |
-| --- | --- | --- | ---: | ---: |
-| `v4_dolma-v1_6_llama` | Dolma-v1.6 | Llama-2 | 4,367,212,598 | 3,067,858,892,487 |
-| `v4_rpj_llama_s4` | RedPajama | Llama-2 | 931,361,530 | 1,385,942,948,192 |
-| `v4_piletrain_llama` | Pile-train | Llama-2 | 210,607,728 | 383,299,322,520 |
-| `v4_c4train_llama` | C4-train | Llama-2 | 364,868,892 | 198,079,554,945 |
-| `v4_pileval_llama` | Pile-val | Llama-2 | 214,670 | 393,769,120 |
-| `v4_pileval_gpt2` | Pile-val | GPT-2 | 214,670 | 383,326,404 |
-| `v4_dolmasample_olmo` | Dolma-sample | OLMo | 13,095,416 | 8,039,098,124 |
+| Name | Documents | Tokens | Corpus | Tokenizer |
+| --- | ---: | ---: | --- | --- |
+| `v4_dolma-v1_6_llama` | 4,367,212,598 | 3,067,858,892,487 | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
+| `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | [RedPajama](https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
+| `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | [Pile-train](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
+| `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | [C4-train](https://huggingface.co/datasets/allenai/c4) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
+| `v4_pileval_llama` | 214,670 | 393,769,120 | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
+| `v4_pileval_gpt2` | 214,670 | 383,326,404 | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [GPT-2](https://huggingface.co/gpt2) |
+| `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [OLMo](https://huggingface.co/allenai/OLMo-7B) |
 
 **Input parameters:**
 
@@ -104,7 +111,7 @@ In general, the request JSON payload should be a dict containing the following f
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `corpus` | The index to search in | `v4_dolma-v1_6_llama`, `v4_rpj_llama_s4`, `v4_piletrain_llama`, `v4_c4train_llama`, `v4_pileval_llama`, `v4_pileval_gpt2`, `v4_dolmasample_olmo` |
+| `index` | The index to search in | E.g., `v4_dolma-v1_6_llama`. See full list in the table in the "Available indexes" section above. |
 | `query_type` | One of the six supported query types | `count`, `prob`, `ntd`, `infgram_prob`, `infgram_ntd`, `search_docs` |
 | `query` or `query_ids` | The query (semantic depends on query type) | If `query`: Any string. If `query_ids`: A list of integers. (Empty may be OK depending on query type) |
 
@@ -149,13 +156,13 @@ You can also connect multiple strings with the AND/OR operators, in the [CNF for
 * The query string will be tokenized into an n-gram, and we only count those occurrences that match the token boundaries. For example, querying `a` will not give you the count of the letter `a`, but rather the count of the token `_a`.
 * When you write a query in CNF, note that **OR has higher precedence than AND** (which is contrary to conventions in boolean algebra).
 * We can only count occurrences where all clauses are separated by no more than 100 tokens.
-* If you query for two or more clauses, and a clause has more than 50000 matches, we will estimate the count from a random subset of all occurrences of that clause. This might cause a zero count on conjuction of some simple clauses (e.g., `birds AND oil`).
+* If you query for two or more clauses (i.e. your query contains AND), and a clause has more than 50000 matches, we will estimate the count from a random subset of all occurrences of that clause. In such cases, the count will be **approximate**. This might cause a zero count on conjuction of some simple clauses (e.g., `birds AND oil`).
 
 **Input parameters:**
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `corpus` | see overview | see overview |
+| `index` | see overview | see overview |
 | `query_type` | see overview | `count` |
 | `query` or `query_ids` | The n-gram to count | If `query`: A string (empty is OK), or several non-empty strings connected with the AND/OR operators. If `query_ids`: A list of integers, or a triply-nested list of integers (see below for details). |
 
@@ -179,6 +186,7 @@ Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2
 | `tokens` | see overview | see overview |
 | `latency` | see overview | see overview |
 | `count` | The count of the query n-gram | A non-negative integer |
+| `approx` | Whether the count is approximate | 0 (for exact) and 1 (for approximate) |
 
 ---
 <br/>
@@ -195,7 +203,7 @@ If you query `natural language processing`, the API returns P(`processing` | `na
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `corpus` | see overview | see overview |
+| `index` | see overview | see overview |
 | `query_type` | see overview | `prob` |
 | `query` or `query_ids` | The n-gram to query | Any non-empty string or list of integers |
 
@@ -227,7 +235,7 @@ If the query appears more than 1000 times in the corpus, the distribution return
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `corpus` | see overview | see overview |
+| `index` | see overview | see overview |
 | `query_type` | see overview | `ntd` |
 | `query` or `query_ids` | The (n-1)-gram to query | Any string or list of integers (empty is OK) |
 
@@ -240,6 +248,7 @@ If the query appears more than 1000 times in the corpus, the distribution return
 | `latency` | see overview | see overview |
 | `prompt_cnt` | The count of the (n-1)-gram | A non-negative integer |
 | `result_by_token_id` | The next token distribution | A dict that maps token IDs to results. Each result is a dict with the following keys: `token` (str, the token string), `prob` (float, the probability of this token), `cont_cnt` (int, the count of the n-gram formed by appending this token) |
+| `approx` | Whether the distribution is approximate | 0 (for exact) or 1 (for approximate) |
 
 ---
 <br/>
@@ -257,7 +266,7 @@ If you query `I love natural language processing`, and `natural language` appear
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `corpus` | see overview | see overview |
+| `index` | see overview | see overview |
 | `query_type` | see overview | `infgram_prob` |
 | `query` or `query_ids` | The sequence to query | Any non-empty string or list of integers |
 
@@ -271,6 +280,7 @@ If you query `I love natural language processing`, and `natural language` appear
 | `prob` | The n-gram LM probability | A real number in range [0, 1] |
 | `prompt_cnt` | The count of the (n-1)-gram | A non-negative integer |
 | `cont_cnt` | The count of the n-gram | A non-negative integer |
+| `suffix_len` | The number of tokens in the longest suffix used to compute the ∞-gram probability | A non-negative integer |
 | `longest_suffix` | The longest suffix used to compute the ∞-gram probability | A string (may be empty) |
 
 ---
@@ -289,7 +299,7 @@ If you query `I love natural language`, and `natural language` appears in the co
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `corpus` | see overview | see overview |
+| `index` | see overview | see overview |
 | `query_type` | see overview | `infgram_ntd` |
 | `query` or `query_ids` | The sequence to query | Any string or list of integers (empty is OK) |
 
@@ -302,6 +312,8 @@ If you query `I love natural language`, and `natural language` appears in the co
 | `latency` | see overview | see overview |
 | `prompt_cnt` | The count of the (n-1)-gram (where (n-1) is the number of tokens in the longest suffix) | A non-negative integer |
 | `result_by_token_id` | The next token distribution | A dict that maps token IDs to results. Each result is a dict with the following keys: `token` (str, the token string), `prob` (float, the probability of this token), `cont_cnt` (int, the count of the n-gram formed by appending this token) |
+| `approx` | Whether the distribution is approximate | 0 (for exact) or 1 (for approximate) |
+| `suffix_len` | The number of tokens in the longest suffix used to compute the ∞-gram probability | A non-negative integer |
 | `longest_suffix` | The longest suffix used to compute the ∞-gram probability | A string (may be empty) |
 
 ---
@@ -334,7 +346,7 @@ If you want another batch of random documents, simply submit the same query agai
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `corpus` | see overview | see overview |
+| `index` | see overview | see overview |
 | `query_type` | see overview | `search_docs` |
 | `query` or `query_ids` | The search query | If `query`: A non-empty string, or several such strings connected with the AND/OR operators. If `query_ids`: A list of integers, or a triply-nested list of integers (see below for details). |
 | `maxnum` | The max number of documents to return | An integer in range [1, 10] |
@@ -358,5 +370,5 @@ Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2
 | `token_ids` | The token IDs in the tokenized query | A list of integers, or a triply-nested list of integers |
 | `tokens` | The tokens in the tokenized query | A list of strings, or a triply-nested list of strings |
 | `latency` | see overview | see overview |
-| `documents` | The list of documents that match the query | A list of Documents, where each Document is a dict with the following keys: `doc_ix` (int, the index of this document in the corpus), `doc_len` (int, the total number of tokens in this document), `disp_len` (int, the number of tokens returned after truncation), `spans` (a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches; if this span does not match any clause, this element is NULL) |
+| `documents` | The list of documents that match the query | A list of Documents, where each Document is a dict with the following keys: `doc_ix` (int, the index of this document in the corpus), `doc_len` (int, the total number of tokens in this document), `disp_len` (int, the number of tokens returned after truncation), `token_ids` (a list of integers: the tokenized version of the document), `spans` (a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches; if this span does not match any clause, this element is NULL) |
 | `message` | A message describing the total number of matched documents | A string |
