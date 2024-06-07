@@ -146,11 +146,8 @@ class InfiniGramEngine:
 
         result = self.engine.search_docs(input_ids=input_ids, maxnum=maxnum, max_disp_len=max_disp_len)
 
-        if result.cnt == 0:
-            return {'message': '0 occurrences found', 'documents': []}
-        message = f'{"Approximately " if result.approx else ""}{result.cnt} occurrences found. Displaying the documents of occurrences #{result.idxs}'
         documents = [{'doc_ix': d.doc_ix, 'doc_len': d.doc_len, 'disp_len': d.disp_len, 'metadata': d.metadata, 'token_ids': d.token_ids} for d in result.docs]
-        return {'message': message, 'documents': documents}
+        return {'cnt': result.cnt, 'approx': result.approx, 'idxs': result.idxs, 'documents': documents}
 
     def search_docs_cnf(self, cnf, maxnum=None, max_disp_len=None, max_clause_freq=None, max_diff_tokens=None):
         if maxnum is None:
@@ -174,11 +171,8 @@ class InfiniGramEngine:
 
         result = self.engine.search_docs_cnf(cnf=cnf, maxnum=maxnum, max_disp_len=max_disp_len, max_clause_freq=max_clause_freq, max_diff_tokens=max_diff_tokens)
 
-        if result.cnt == 0:
-            return {'message': '0 occurrences found', 'documents': []}
-        message = f'{"Approximately " if result.approx else ""}{result.cnt} occurrences found. Displaying the documents of occurrences #{result.idxs}'
         documents = [{'doc_ix': d.doc_ix, 'doc_len': d.doc_len, 'disp_len': d.disp_len, 'metadata': d.metadata, 'token_ids': d.token_ids} for d in result.docs]
-        return {'message': message, 'documents': documents}
+        return {'cnt': result.cnt, 'approx': result.approx, 'idxs': result.idxs, 'documents': documents}
 
     def get_doc_by_rank(self, s, rank, max_disp_len=None):
         if max_disp_len is None:

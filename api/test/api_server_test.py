@@ -1,28 +1,34 @@
 import requests
 
 api_url = 'http://localhost:5000/'
-corpus = 'v4_pileval_llama'
+index = 'v4_pileval_llama'
 
 queries = [
-    {'corpus': corpus, 'query_type': 'count', 'query': ''},
-    {'corpus': corpus, 'query_type': 'count', 'query': 'natural language processing'},
-    {'corpus': corpus, 'query_type': 'count', 'query': 'fhsdkcdshfsdf'},
-    {'corpus': corpus, 'query_type': 'count', 'query': 'natural language processing OR artificial intelligence'},
-    {'corpus': corpus, 'query_type': 'count', 'query': 'natural language processing AND deep learning'},
-    {'corpus': corpus, 'query_type': 'count', 'query': 'natural language processing OR artificial intelligence AND deep learning'},
-    {'corpus': corpus, 'query_type': 'prob', 'query': 'natural language processing'},
-    {'corpus': corpus, 'query_type': 'prob', 'query': 'natural language apple'},
-    {'corpus': corpus, 'query_type': 'prob', 'query': 'fhsdkcdshfsdf processing'},
-    {'corpus': corpus, 'query_type': 'ntd', 'query': 'natural language'},
-    {'corpus': corpus, 'query_type': 'ntd', 'query': ''},
-    {'corpus': corpus, 'query_type': 'infgram_prob', 'query': 'fhsdkcdshfsdf natural language processing'},
-    {'corpus': corpus, 'query_type': 'infgram_ntd', 'query': 'fhsdkcdshfsdf natural language'},
-    {'corpus': corpus, 'query_type': 'search_docs', 'maxnum': 1, 'query': ''},
-    {'corpus': corpus, 'query_type': 'search_docs', 'maxnum': 1, 'query': 'natural language processing'},
-    {'corpus': corpus, 'query_type': 'search_docs', 'maxnum': 1, 'query': 'fhsdkcdshfsdf'},
-    {'corpus': corpus, 'query_type': 'search_docs', 'maxnum': 1, 'query': 'natural language processing OR artificial intelligence'},
-    {'corpus': corpus, 'query_type': 'search_docs', 'maxnum': 1, 'query': 'natural language processing AND deep learning'},
-    {'corpus': corpus, 'query_type': 'search_docs', 'maxnum': 1, 'query': 'natural language processing OR artificial intelligence AND deep learning'},
+    {'index': index, 'query_type': 'count', 'query': 'natural language processing'},
+    {'index': index, 'query_type': 'count', 'query': ''},
+    {'index': index, 'query_type': 'count', 'query': 'fhsdkcdshfsdf'},
+    {'index': index, 'query_type': 'count', 'query': 'natural language processing OR artificial intelligence', 'max_clause_freq': 50000, 'max_diff_tokens': 20},
+    {'index': index, 'query_type': 'count', 'query': 'natural language processing AND deep learning', 'max_clause_freq': 50000, 'max_diff_tokens': 20},
+    {'index': index, 'query_type': 'count', 'query': 'natural language processing AND deep learning'},
+    {'index': index, 'query_type': 'count', 'query': 'natural language processing OR artificial intelligence AND deep learning', 'max_clause_freq': 50000, 'max_diff_tokens': 20},
+    {'index': index, 'query_type': 'prob', 'query': 'natural language processing'},
+    {'index': index, 'query_type': 'prob', 'query': 'natural language apple'},
+    {'index': index, 'query_type': 'prob', 'query': 'fhsdkcdshfsdf processing'},
+    {'index': index, 'query_type': 'ntd', 'query': 'natural language', 'max_support': 10},
+    {'index': index, 'query_type': 'ntd', 'query': 'natural language'},
+    {'index': index, 'query_type': 'ntd', 'query': '', 'max_support': 10},
+    {'index': index, 'query_type': 'infgram_prob', 'query': 'fhsdkcdshfsdf natural language processing'},
+    {'index': index, 'query_type': 'infgram_ntd', 'query': 'fhsdkcdshfsdf natural language', 'max_support': 10},
+    {'index': index, 'query_type': 'infgram_ntd', 'query': 'fhsdkcdshfsdf natural language'},
+    {'index': index, 'query_type': 'search_docs', 'query': 'natural language processing', 'maxnum': 1, 'max_disp_len': 20},
+    {'index': index, 'query_type': 'search_docs', 'query': 'natural language processing', 'maxnum': 10, 'max_disp_len': 20},
+    {'index': index, 'query_type': 'search_docs', 'query': 'natural language processing'},
+    {'index': index, 'query_type': 'search_docs', 'query': '', 'maxnum': 1, 'max_disp_len': 20},
+    {'index': index, 'query_type': 'search_docs', 'query': 'fhsdkcdshfsdf', 'maxnum': 1, 'max_disp_len': 20},
+    {'index': index, 'query_type': 'search_docs', 'query': 'natural language processing OR artificial intelligence', 'maxnum': 1, 'max_disp_len': 20, 'max_clause_freq': 50000, 'max_diff_tokens': 20},
+    {'index': index, 'query_type': 'search_docs', 'query': 'natural language processing AND deep learning', 'maxnum': 1, 'max_disp_len': 20, 'max_clause_freq': 50000, 'max_diff_tokens': 20},
+    {'index': index, 'query_type': 'search_docs', 'query': 'natural language processing AND deep learning', 'maxnum': 1, 'max_disp_len': 200},
+    {'index': index, 'query_type': 'search_docs', 'query': 'natural language processing OR artificial intelligence AND deep learning', 'maxnum': 1, 'max_disp_len': 20, 'max_clause_freq': 50000, 'max_diff_tokens': 20},
 ]
 
 for query in queries:

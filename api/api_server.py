@@ -14,17 +14,18 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--MODE', type=str, default='api', choices=['api', 'dev', 'demo'])
 parser.add_argument('--FLASK_PORT', type=int, default=5000)
 parser.add_argument('--CONFIG_FILE', type=str, default='api_config.json')
+parser.add_argument('--LOG_PATH', type=str, default=None)
 # API limits
 parser.add_argument('--MAX_QUERY_CHARS', type=int, default=1000)
 parser.add_argument('--MAX_QUERY_TOKENS', type=int, default=500)
 parser.add_argument('--MAX_CLAUSES_PER_CNF', type=int, default=4)
 parser.add_argument('--MAX_TERMS_PER_CLAUSE', type=int, default=4)
-parser.add_argument('--MAX_OUTPUT_NUM_DOCS', type=int, default=10)
-# engine limits
-parser.add_argument('--MAX_OUTPUT_DOC_TOKENS', type=int, default=5000)
-parser.add_argument('--MAX_CNT_FOR_NTD', type=int, default=1000)
-parser.add_argument('--MAX_CLAUSE_FREQ_PER_SHARD', type=int, default=50000)
+# the following values must be no smaller than the defaults in engine.py
+parser.add_argument('--MAX_SUPPORT', type=int, default=1000)
+parser.add_argument('--MAX_CLAUSE_FREQ', type=int, default=50000)
 parser.add_argument('--MAX_DIFF_TOKENS', type=int, default=100)
+parser.add_argument('--MAXNUM', type=int, default=10)
+parser.add_argument('--MAX_DISP_LEN', type=int, default=5000)
 args = parser.parse_args()
 
 DOLMA_API_URL = os.environ.get(f'DOLMA_API_URL_{args.MODE.upper()}', None)
@@ -44,17 +45,7 @@ class Processor:
         else:
             raise NotImplementedError
 
-        self.engine = InfiniGramEngine(
-            index_dir=config['dir'],
-            eos_token_id=self.tokenizer.eos_token_id,
-            MAX_CNT_FOR_NTD=args.MAX_CNT_FOR_NTD,
-            MAX_OUTPUT_DOC_TOKENS=args.MAX_OUTPUT_DOC_TOKENS,
-            MAX_CLAUSE_FREQ_PER_SHARD=args.MAX_CLAUSE_FREQ_PER_SHARD,
-            MAX_DIFF_TOKENS=args.MAX_DIFF_TOKENS,
-            ds_prefetch_depth=config.get('ds_prefetch_depth', 1),
-            sa_prefetch_depth=config.get('sa_prefetch_depth', 3),
-            od_prefetch_depth=config.get('od_prefetch_depth', 3),
-        )
+        self.engine = InfiniGramEngine(index_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id)
 
     def tokenize(self, query):
         if self.tokenizer_type == 'gpt2':
@@ -99,6 +90,7 @@ class Processor:
             if any(input_id < 0 or input_id >= self.tokenizer.vocab_size for input_id in query_ids):
                 return {'error': f'Some item(s) in your query_ids are out-of-range!'}
             tokens = self.tokenizer.convert_ids_to_tokens(query_ids)
+            is_cnf = False
         elif type(query_ids) == list and all([type(clause) == list and all([type(term) == list and all([type(input_id) == int for input_id in term]) for term in clause]) for clause in query_ids]):
             if sum(sum(len(term) for term in clause) for clause in query_ids) > args.MAX_QUERY_TOKENS:
                 return {'error': f'Please limit your input to <= {args.MAX_QUERY_TOKENS} tokens!'}
@@ -111,11 +103,15 @@ class Processor:
                     if any(input_id < 0 or input_id >= self.tokenizer.vocab_size for input_id in term):
                         return {'error': f'Some item(s) in your query_ids are out-of-range!'}
             tokens = [[self.tokenizer.convert_ids_to_tokens(term) for term in clause] for clause in query_ids]
+            is_cnf = True
         else:
             return {'error': f'query_ids must be a list of integers, or a triply-nested list of integers!'}
 
         start_time = time.time()
-        result = getattr(self, query_type)(query_ids, **kwargs)
+        if is_cnf and query_type in ['count', 'search_docs']:
+            result = getattr(self, f'{query_type}_cnf')(query_ids, **kwargs)
+        else:
+            result = getattr(self, query_type)(query_ids, **kwargs)
         end_time = time.time()
         result['latency'] = end_time - start_time
         result['token_ids'] = query_ids
@@ -124,26 +120,41 @@ class Processor:
         return result
 
     def count(self, query_ids):
-        return self.engine.count(query_ids)
+        return self.engine.count(input_ids=query_ids)
+
+    def count_cnf(self, query_ids, max_clause_freq=None, max_diff_tokens=None):
+        if max_clause_freq is not None and not (type(max_clause_freq) == int and 0 < max_clause_freq and max_clause_freq <= args.MAX_CLAUSE_FREQ):
+            return {'error': f'max_clause_freq must be an integer in [1, {args.MAX_CLAUSE_FREQ}]!'}
+        if max_diff_tokens is not None and not (type(max_diff_tokens) == int and 0 < max_diff_tokens and max_diff_tokens <= args.MAX_DIFF_TOKENS):
+            return {'error': f'max_diff_tokens must be an integer in [1, {args.MAX_DIFF_TOKENS}]!'}
+        return self.engine.count_cnf(cnf=query_ids, max_clause_freq=max_clause_freq, max_diff_tokens=max_diff_tokens)
 
     def prob(self, query_ids):
-        return self.engine.prob(query_ids)
+        if len(query_ids) == 0:
+            return {'error': f'Please provide a non-empty query!'}
+        return self.engine.prob(prompt_ids=query_ids[:-1], cont_id=query_ids[-1])
 
-    def ntd(self, query_ids):
-        result = self.engine.ntd(query_ids)
+    def ntd(self, query_ids, max_support=None):
+        if max_support is not None and not (type(max_support) == int and 0 < max_support and max_support <= args.MAX_SUPPORT):
+            return {'error': f'max_support must be an integer in [1, {args.MAX_SUPPORT}]!'}
+        result = self.engine.ntd(prompt_ids=query_ids, max_support=max_support)
         if 'result_by_token_id' in result:
             for token_id in result['result_by_token_id']:
                 result['result_by_token_id'][token_id]['token'] = self.tokenizer.convert_ids_to_tokens([token_id])[0].replace('Ġ', ' ')
         return result
 
     def infgram_prob(self, query_ids):
-        result = self.engine.infgram_prob(query_ids)
+        if len(query_ids) == 0:
+            return {'error': f'Please provide a non-empty query!'}
+        result = self.engine.infgram_prob(prompt_ids=query_ids[:-1], cont_id=query_ids[-1])
         if 'suffix_len' in result:
             result['longest_suffix'] = self.tokenizer.decode(query_ids[-result['suffix_len']-1:-1], skip_special_tokens=False, clean_up_tokenization_spaces=False)
         return result
 
-    def infgram_ntd(self, query_ids):
-        result = self.engine.infgram_ntd(query_ids)
+    def infgram_ntd(self, query_ids, max_support=None):
+        if max_support is not None and not (type(max_support) == int and 0 < max_support and max_support <= args.MAX_SUPPORT):
+            return {'error': f'max_support must be an integer in [1, {args.MAX_SUPPORT}]!'}
+        result = self.engine.infgram_ntd(prompt_ids=query_ids, max_support=max_support)
         if 'result_by_token_id' in result:
             for token_id in result['result_by_token_id']:
                 result['result_by_token_id'][token_id]['token'] = self.tokenizer.convert_ids_to_tokens([token_id])[0].replace('Ġ', ' ')
@@ -151,32 +162,73 @@ class Processor:
             result['longest_suffix'] = self.tokenizer.decode(query_ids[-result['suffix_len']:], skip_special_tokens=False, clean_up_tokenization_spaces=False)
         return result
 
-    def search_docs(self, query_ids, maxnum):
-        if maxnum > args.MAX_OUTPUT_NUM_DOCS:
-            return {'error': f'Please request at most {args.MAX_OUTPUT_NUM_DOCS} documents!'}
+    def search_docs(self, query_ids, maxnum=None, max_disp_len=None):
+        if maxnum is not None and not (type(maxnum) == int and 0 < maxnum and maxnum <= args.MAXNUM):
+            return {'error': f'maxnum must be an integer in [1, {args.MAXNUM}]!'}
+        if max_disp_len is not None and not (type(max_disp_len) == int and 0 < max_disp_len and max_disp_len <= args.MAX_DISP_LEN):
+            return {'error': f'max_disp_len must be an integer in [1, {args.MAX_DISP_LEN}]!'}
 
-        result = self.engine.search_docs(query_ids, maxnum)
+        result = self.engine.search_docs(input_ids=query_ids, maxnum=maxnum, max_disp_len=max_disp_len)
 
-        if 'documents' in result:
-            if type(query_ids) == list and all(type(input_id) == int for input_id in query_ids): # simple query
-                cnf = [[query_ids]]
-            else:
-                cnf = query_ids
+        if 'error' in result:
+            return result
+
+        if result['cnt'] == 0:
+            result['message'] = '0 occurrences found'
+        else:
+            result['message'] = f'{"Approximately " if result["approx"] else ""}{result["cnt"]} occurrences found. Displaying the documents of occurrences #{result["idxs"]}'
+        if len(query_ids) > 0:
+            needle = query_ids
             for document in result['documents']:
                 token_ids = document['token_ids']
                 spans = [(token_ids, None)]
-                for d, clause in enumerate(cnf):
-                    for needle in clause:
-                        new_spans = []
-                        for span in spans:
-                            if span[1] is not None:
-                                new_spans.append(span)
-                            else:
-                                haystack = span[0]
-                                new_spans += self._replace(haystack, needle, label=f'{d}')
-                        spans = new_spans
+                new_spans = []
+                for span in spans:
+                    if span[1] is not None:
+                        new_spans.append(span)
+                    else:
+                        haystack = span[0]
+                        new_spans += self._replace(haystack, needle, label='0')
+                spans = new_spans
                 spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
                 document['spans'] = spans
+        return result
+
+    def search_docs_cnf(self, query_ids, maxnum=None, max_disp_len=None, max_clause_freq=None, max_diff_tokens=None):
+        if maxnum is not None and not (type(maxnum) == int and 0 < maxnum and maxnum <= args.MAXNUM):
+            return {'error': f'maxnum must be an integer in [1, {args.MAXNUM}]!'}
+        if max_disp_len is not None and not (type(max_disp_len) == int and 0 < max_disp_len and max_disp_len <= args.MAX_DISP_LEN):
+            return {'error': f'max_disp_len must be an integer in [1, {args.MAX_DISP_LEN}]!'}
+        if max_clause_freq is not None and not (type(max_clause_freq) == int and 0 < max_clause_freq and max_clause_freq <= args.MAX_CLAUSE_FREQ):
+            return {'error': f'max_clause_freq must be an integer in [1, {args.MAX_CLAUSE_FREQ}]!'}
+        if max_diff_tokens is not None and not (type(max_diff_tokens) == int and 0 < max_diff_tokens and max_diff_tokens <= args.MAX_DIFF_TOKENS):
+            return {'error': f'max_diff_tokens must be an integer in [1, {args.MAX_DIFF_TOKENS}]!'}
+
+        result = self.engine.search_docs_cnf(cnf=query_ids, maxnum=maxnum, max_disp_len=max_disp_len, max_clause_freq=max_clause_freq, max_diff_tokens=max_diff_tokens)
+
+        if 'error' in result:
+            return result
+
+        if result['cnt'] == 0:
+            result['message'] = '0 occurrences found'
+        else:
+            result['message'] = f'{"Approximately " if result["approx"] else ""}{result["cnt"]} occurrences found. Displaying the documents of occurrences #{result["idxs"]}'
+        cnf = query_ids
+        for document in result['documents']:
+            token_ids = document['token_ids']
+            spans = [(token_ids, None)]
+            for d, clause in enumerate(cnf):
+                for needle in clause:
+                    new_spans = []
+                    for span in spans:
+                        if span[1] is not None:
+                            new_spans.append(span)
+                        else:
+                            haystack = span[0]
+                            new_spans += self._replace(haystack, needle, label=f'{d}')
+                    spans = new_spans
+            spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
+            document['spans'] = spans
         return result
 
     def _replace(self, haystack, needle, label):
@@ -204,7 +256,9 @@ with open(args.CONFIG_FILE) as f:
         PROCESSOR_BY_INDEX[config['name']] = Processor(config)
 
 # save log under home directory
-log = open(f'/home/ubuntu/logs/flask_{args.MODE}.log', 'a')
+if args.LOG_PATH is None:
+    args.LOG_PATH = f'/home/ubuntu/logs/flask_{args.MODE}.log'
+log = open(args.LOG_PATH, 'a')
 app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
