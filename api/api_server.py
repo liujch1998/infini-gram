@@ -177,11 +177,11 @@ class Processor:
             result['message'] = '0 occurrences found'
         else:
             result['message'] = f'{"Approximately " if result["approx"] else ""}{result["cnt"]} occurrences found. Displaying the documents of occurrences #{result["idxs"]}'
-        if len(query_ids) > 0:
-            needle = query_ids
-            for document in result['documents']:
-                token_ids = document['token_ids']
-                spans = [(token_ids, None)]
+        for document in result['documents']:
+            token_ids = document['token_ids']
+            spans = [(token_ids, None)]
+            if len(query_ids) > 0:
+                needle = query_ids
                 new_spans = []
                 for span in spans:
                     if span[1] is not None:
@@ -190,8 +190,8 @@ class Processor:
                         haystack = span[0]
                         new_spans += self._replace(haystack, needle, label='0')
                 spans = new_spans
-                spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
-                document['spans'] = spans
+            spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
+            document['spans'] = spans
         return result
 
     def search_docs_cnf(self, query_ids, maxnum=None, max_disp_len=None, max_clause_freq=None, max_diff_tokens=None):
