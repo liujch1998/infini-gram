@@ -53,10 +53,10 @@ ds_paths = [os.path.join(args.save_dir, f'tokenized.{i}') for i in range(args.wo
 od_paths = [os.path.join(args.save_dir, f'offset.{i}') for i in range(args.worker_id, args.shards, args.workers)]
 mt_paths = [os.path.join(args.save_dir, f'metadata.{i}') for i in range(args.worker_id, args.shards, args.workers)]
 om_paths = [os.path.join(args.save_dir, f'metaoff.{i}') for i in range(args.worker_id, args.shards, args.workers)]
-if all([os.path.exists(ds_path) and os.access(ds_path, os.R_OK) and not os.access(ds_path, os.W_OK) and not os.access(ds_path, os.X_OK) for ds_path in ds_paths]) \
-    and all([os.path.exists(od_path) and os.access(od_path, os.R_OK) and not os.access(od_path, os.W_OK) and not os.access(od_path, os.X_OK) for od_path in od_paths]) \
-    and all([os.path.exists(mt_path) and os.access(mt_path, os.R_OK) and not os.access(mt_path, os.W_OK) and not os.access(mt_path, os.X_OK) for mt_path in mt_paths]) \
-    and all([os.path.exists(om_path) and os.access(om_path, os.R_OK) and not os.access(om_path, os.W_OK) and not os.access(om_path, os.X_OK) for om_path in om_paths]):
+if all([os.path.exists(ds_path) for ds_path in ds_paths]) \
+    and all([os.path.exists(od_path) for od_path in od_paths]) \
+    and all([os.path.exists(mt_path) for mt_path in mt_paths]) \
+    and all([os.path.exists(om_path) for om_path in om_paths]):
     print('Step 1 (tokenize): Skipped. All tokenized files already exist.')
 else:
     print('Step 1 (tokenize): Starting ...')
@@ -64,10 +64,12 @@ else:
     if args.tokenizer == 'gpt2':
         tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2', use_fast=False, add_bos_token=False, add_eos_token=False)
     elif args.tokenizer == 'llama':
-        tokenizer = transformers.AutoTokenizer.from_pretrained('meta-llama/Llama-2-7b-hf', token=os.environ.get('HF_TOKEN_DOWNLOAD'), use_fast=False, add_bos_token=False, add_eos_token=False) # The fast tokenizer seems unbearably slow ...
+        tokenizer = transformers.AutoTokenizer.from_pretrained('meta-llama/Llama-2-7b-hf', token=os.environ.get('HF_TOKEN'), use_fast=False, add_bos_token=False, add_eos_token=False) # The fast tokenizer seems unbearably slow ...
     elif args.tokenizer == 'olmo':
-        from dolma.tokenizer import Tokenizer
-        tokenizer = Tokenizer.from_pretrained('allenai/gpt-neox-olmo-dolma-v1_5', bos_token_id=None, eos_token_id=None, pad_token_id=1, segment_before_tokenization=True)
+        tokenizer = transformers.AutoTokenizer.from_pretrained("allenai/OLMo-7B", add_bos_token=False, add_eos_token=False)
+        # # The following is a faster version, but the result is a bit different
+        # from dolma.tokenizer import Tokenizer
+        # tokenizer = Tokenizer.from_pretrained('allenai/gpt-neox-olmo-dolma-v1_5', bos_token_id=None, eos_token_id=None, pad_token_id=1, segment_before_tokenization=True)
     else:
         raise ValueError(f'Unknown tokenizer: {args.tokenizer}')
 
@@ -91,18 +93,18 @@ else:
         return lines
 
     def tok(line):
-        js = json.loads(line.strip('\n'))
-        tok_text = tokenizer.encode(js['text'])
+        metadata = json.loads(line.strip('\n'))
+        tok_text = tokenizer.encode(metadata['text'])
+        del metadata['text']
         byte_arr = np.array(tok_text, dtype=np.uint16).view(np.uint8).tobytes()
-        ID = js["id"] if "id" in js else ""
-        return byte_arr, ID
-    def extract_text(line):
-        js = json.loads(line.strip('\n'))
-        text = js['text']
-        ID = js["id"] if "id" in js else ""
-        return text, ID
-    def convert_to_bytes(tok_text):
-        return np.array(tok_text, dtype=np.uint16).view(np.uint8).tobytes()
+        return byte_arr, metadata
+    # def extract_text(line):
+    #     js = json.loads(line.strip('\n'))
+    #     text = js['text']
+    #     ID = js["id"] if "id" in js else ""
+    #     return text, ID
+    # def convert_to_bytes(tok_text):
+    #     return np.array(tok_text, dtype=np.uint16).view(np.uint8).tobytes()
 
     data_paths = glob.glob(f'{args.data_dir}/**/*.json*', recursive=True)
     data_paths = list(sorted(data_paths))
@@ -119,17 +121,17 @@ else:
             for offset in tqdm(range(0, len(lines), args.workers*args.batch_size), total=len(range(0, len(lines), args.workers*args.batch_size))):
                 batch_lines = lines[(offset+args.worker_id):(offset+args.workers*args.batch_size):args.workers]
                 results = p.map(tok, batch_lines)
-                for i, (byte_arr, ID) in enumerate(results):
+                for i, (byte_arr, metadata) in enumerate(results):
                     content = args.doc_sep + byte_arr
                     j = i % (args.shards // args.workers)
                     ds_fouts[j].write(content)
                     od_fouts[j].write(np.array([ods[j]], dtype=np.uint64).view(np.uint8).tobytes())
                     ods[j] += len(content)
                     linenum = (offset + args.worker_id) + args.workers * i
-                    metadata = f'{ID},{rel_data_path},{linenum}\n'
-                    mt_fouts[j].write(metadata)
+                    mt = json.dumps({'path': rel_data_path, 'linenum': linenum, 'metadata': metadata}) + '\n'
+                    mt_fouts[j].write(mt)
                     om_fouts[j].write(np.array([oms[j]], dtype=np.uint64).view(np.uint8).tobytes())
-                    oms[j] += len(metadata)
+                    oms[j] += len(mt)
             del lines
 
     for ds_fout in ds_fouts:
@@ -141,22 +143,13 @@ else:
     for om_fout in om_fouts:
         om_fout.close()
 
-    for ds_path in ds_paths:
-        os.chmod(ds_path, 0o444)
-    for od_path in od_paths:
-        os.chmod(od_path, 0o444)
-    for mt_path in mt_paths:
-        os.chmod(mt_path, 0o444)
-    for om_path in om_paths:
-        os.chmod(om_path, 0o444)
-
 # ======== Step 2 (build suffix array) ======== #
 
 print('Step 2 (build suffix array): starting ...')
 
 for t, ds_path in enumerate(ds_paths):
     sa_path = ds_path.replace('tokenized', 'table')
-    if os.path.exists(sa_path) and os.access(sa_path, os.R_OK) and not os.access(sa_path, os.W_OK) and not os.access(sa_path, os.X_OK):
+    if os.path.exists(sa_path):
         print(f'Shard {t} / {len(ds_paths)}: Skipped. Table already exists.')
         continue
 
@@ -246,8 +239,6 @@ for t, ds_path in enumerate(ds_paths):
     if table_size % (tok_size // 2) != 0:
         print('File size is wrong')
         exit(1)
-
-    os.chmod(sa_path, 0o444)
 
     end_time_all = time.time()
     print(f'Shard {t} / {len(ds_paths)}: Done. Took {end_time_all-start_time_all:.2f} seconds')
