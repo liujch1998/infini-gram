@@ -113,7 +113,7 @@ class Processor:
         else:
             result = getattr(self, query_type)(query_ids, **kwargs)
         end_time = time.time()
-        result['latency'] = end_time - start_time
+        result['latency'] = (end_time - start_time) * 1000
         result['token_ids'] = query_ids
         result['tokens'] = tokens
 
