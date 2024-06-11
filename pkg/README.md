@@ -62,11 +62,13 @@ The interface is essentially identical to our [API endpoint](https://infini-gram
 We have made the following indexes publicly available on AWS S3.
 
 Smaller indexes are stored in the `s3://infini-gram-lite` bucket and can be downloaded for free and without an AWS account.
+These indexes are `v4_pileval_llama`, `v4_pileval_gpt2`, and `v4_dolmasample_olmo`.
 To download, run command `aws s3 cp --no-sign-request --recursive {S3_URL} {LOCAL_INDEX_PATH}`
 
 Larger indexes are stored in the `s3://infini-gram` bucket.
 To download these indexes, you need to pay for the data transfer fee (~$0.09 per GB according to [AWS S3 pricing](https://aws.amazon.com/s3/pricing/)).
 Make sure you have correctly set up your AWS credentials before downloading these indexes.
+These indexes are `v4_rpj_llama_s4`, `v4_piletrain_llama`, and `v4_c4train_llama`.
 To download, run command `aws s3 cp --request-payer requester --recursive {S3_URL} {LOCAL_INDEX_PATH}`
 
 | Name | Documents | Tokens | Storage | Corpus | Tokenizer | S3 URL |

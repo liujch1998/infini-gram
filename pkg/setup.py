@@ -35,7 +35,7 @@ ext_modules = [
 
 setup(
     name='infini_gram',
-    version='0.0.5',
+    version='0.2.0',
     author='Jiacheng (Gary) Liu',
     author_email='liujc@cs.washington.edu',
     description='A Python package for infini-gram',
