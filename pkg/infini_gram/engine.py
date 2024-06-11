@@ -5,7 +5,7 @@ class InfiniGramEngine:
 
     def __init__(self, index_dir, eos_token_id,
                  load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
-                 max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=5000,
+                 max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=1000,
                  ):
 
         assert sys.byteorder == 'little', 'This code is designed to run on little-endian machines only!'

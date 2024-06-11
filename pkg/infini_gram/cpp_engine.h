@@ -327,9 +327,10 @@ public:
         vector<vector<pair<U64, U64>>> segment_by_term_by_shard(_num_shards);
         vector<double> subsampling_factor_by_shard(_num_shards);
         vector<thread> threads;
+        U64 max_clause_freq_per_shard = (U64)((max_clause_freq + (_num_shards - 1)) / _num_shards); // ceil div
         for (size_t s = 0; s < _num_shards; s++) {
             threads.emplace_back(&Engine::_find_disj_thread, this, s,
-                &find_result_by_term, max_clause_freq / _num_shards, &cnt_by_shard[s], &segment_by_term_by_shard[s], &subsampling_factor_by_shard[s]);
+                &find_result_by_term, max_clause_freq_per_shard, &cnt_by_shard[s], &segment_by_term_by_shard[s], &subsampling_factor_by_shard[s]);
         }
         for (auto &thread : threads) {
             thread.join();

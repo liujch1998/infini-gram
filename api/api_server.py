@@ -22,10 +22,10 @@ parser.add_argument('--MAX_CLAUSES_PER_CNF', type=int, default=4)
 parser.add_argument('--MAX_TERMS_PER_CLAUSE', type=int, default=4)
 # the following values must be no smaller than the defaults in engine.py
 parser.add_argument('--MAX_SUPPORT', type=int, default=1000)
-parser.add_argument('--MAX_CLAUSE_FREQ', type=int, default=50000)
-parser.add_argument('--MAX_DIFF_TOKENS', type=int, default=100)
+parser.add_argument('--MAX_CLAUSE_FREQ', type=int, default=500000)
+parser.add_argument('--MAX_DIFF_TOKENS', type=int, default=1000)
 parser.add_argument('--MAXNUM', type=int, default=10)
-parser.add_argument('--MAX_DISP_LEN', type=int, default=5000)
+parser.add_argument('--MAX_DISP_LEN', type=int, default=10000)
 args = parser.parse_args()
 
 DOLMA_API_URL = os.environ.get(f'DOLMA_API_URL_{args.MODE.upper()}', None)
