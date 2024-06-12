@@ -3,7 +3,7 @@ layout: page
 title: API Endpoint
 ---
 
-## API Documentation
+## API Endpoint
 
 The infini-gram API endpoint is `https://api.infini-gram.io/`.
 Please make regular HTTP POST requests.
@@ -29,6 +29,12 @@ If you find infini-gram useful, please kindly cite our paper:
 <br/>
 
 ## Updates
+
+### 2024-06-12
+
+* The `count` query now has two optional fields, `max_clause_freq` and `max_diff_tokens`, both are for customizing CNF queries.
+* The `ntd` and `infgram_ntd` queries now has an optional field, `max_support`, which is to customize the accuracy of result.
+* The `search_docs` query now has four optional fields. `max_clause_freq` and `max_diff_tokens` which are similar to those in `count` queries. `max_disp_len` which controls how many tokens to return per document. `maxnum` is now optional with a default value of 1.
 
 ### 2024-06-06
 
@@ -118,6 +124,8 @@ In general, the request JSON payload should be a dict containing the following f
 For certain query types, additional fields may be required.
 Please see the specific query type below for more details.
 
+If you supply a `query` string, it will be tokenized into an n-gram, and we only find results that match the token boundaries. For example, doing a count query with query=`a` will not give you the count of the letter `a`, but rather the count of the token `_a`.
+
 **Output parameters:**
 
 If an error occurred (e.g., malformed input, internal server error), the response JSON dict will contain a key `error` with a string value describing the error.
@@ -147,16 +155,16 @@ You can also connect multiple strings with the AND/OR operators, in the [CNF for
 
 **Examples:**
 
-1. If you query `natural language processing`, the API returns Cnt(`natural language processing`).
+1. If you query `natural language processing`, the API returns the number of occurrences of `natural language processing`.
 2. If you query `natural language processing AND deep learning`, the API returns the number of co-occurrences of `natural language processing` and `deep learning`.
-3. If you query `natural language processing OR artificial intelligence AND deep learning OR machine learning`, the API returns the number of co-occurrences of {at least one of `natural language processing` / `artificial intelligence`}, and {at least one of `deep learning` / `machine learning`}.
+3. If you query `natural language processing OR artificial intelligence AND deep learning OR machine learning`, the API returns the number of co-occurrences of {one of `natural language processing` / `artificial intelligence`}, and {one of `deep learning` / `machine learning`}.
 
-**Notes:**
+**Notes on CNF queries:**
 
-* The query string will be tokenized into an n-gram, and we only count those occurrences that match the token boundaries. For example, querying `a` will not give you the count of the letter `a`, but rather the count of the token `_a`.
 * When you write a query in CNF, note that **OR has higher precedence than AND** (which is contrary to conventions in boolean algebra).
-* We can only count occurrences where all clauses are separated by no more than 100 tokens.
-* If you query for two or more clauses (i.e. your query contains AND), and a clause has more than 50000 matches, we will estimate the count from a random subset of all occurrences of that clause. In such cases, the count will be **approximate**. This might cause a zero count on conjuction of some simple clauses (e.g., `birds AND oil`).
+* In AND queries, we can only examine co-occurrences where adjacent clauses are separated by no more than 100 tokens. You can customize this value by supplying a field `max_diff_tokens` with an integer value within range [1, 1000].
+* In AND queries, if a clause has more than 50000 matches, the count will be **approximate**: we will estimate the count by examining a random subset of 50000 documents out of all documents containing that clause. You can customize this value by supplying a field `max_clause_freq` with an integer value within range [1, 500000].
+* The above subsampling mechanism might cause a zero count on conjuction of some simple clauses (e.g., `birds AND oil`).
 
 **Input parameters:**
 
@@ -165,6 +173,8 @@ You can also connect multiple strings with the AND/OR operators, in the [CNF for
 | `index` | see overview | see overview |
 | `query_type` | see overview | `count` |
 | `query` or `query_ids` | The n-gram to count | If `query`: A string (empty is OK), or several non-empty strings connected with the AND/OR operators. If `query_ids`: A list of integers, or a triply-nested list of integers (see below for details). |
+| [Optional] `max_clause_freq` | For CNF queries only. The maximum clause frequency before subsampling happens. | An integer in range [1, 500000], default = 50000 |
+| [Optional] `max_diff_tokens` | For CNF queries only. The maximum distance between adjacent clauses. | An integer in range [1, 1000], default = 100 |
 
 If you input `query_ids`, it should be either a list of integers (for simple queries), or a list of list of list of integers (for CNF queries).
 In case of CNF queries:
@@ -185,7 +195,7 @@ Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2
 | `token_ids` | see overview | see overview |
 | `tokens` | see overview | see overview |
 | `latency` | see overview | see overview |
-| `count` | The count of the query n-gram | A non-negative integer |
+| `count` | The number of occurrences of the query | A non-negative integer |
 | `approx` | Whether the count is approximate | False (for exact) and True (for approximate) |
 
 ---
@@ -196,8 +206,13 @@ Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2
 This query type computes the n-gram LM probability of the last token of the query conditioning on all preceding tokens.
 It treats your query as an n-gram, counts the full n-gram and also the (n-1)-gram that excludes the last token, and takes the division of the two counts.
 
-**Example:**
-If you query `natural language processing`, the API returns P(`processing` | `natural language`) = Cnt(`natural language processing`) / Cnt(`natural language`).
+**Examples:**
+
+* If you query `natural language processing`, the API returns P(`processing` | `natural language`) = Cnt(`natural language processing`) / Cnt(`natural language`).
+
+**Notes:**
+
+* If the (n-1)-gram is not found in the corpus, the returned probability will be -1.0 (to denote NaN).
 
 **Input parameters:**
 
@@ -225,11 +240,14 @@ If you query `natural language processing`, the API returns P(`processing` | `na
 
 This query type treats your query as the (n-1)-gram as in query type 2, and returns the full distribution of the next token.
 
-**Example:**
-If you query `natural language`, the API returns P(* | `natural language`) for all possible tokens *.
+**Examples:**
 
-**Note:**
-If the query appears more than 1000 times in the corpus, the distribution returned will be approximate.
+* If you query `natural language`, the API returns P(* | `natural language`) for all possible tokens *.
+
+**Notes:**
+
+* If the (n-1)-gram is not found in the corpus, you will get an empty distribution.
+* If the (n-1)-gram appears more than 1000 times in the corpus, the result will be **approximate**: we will estimate the distribution by examining a subset of 1000 occurrences of the (n-1)-gram. You can customize this value by supplying a field `max_support` with an integer value within range [1, 1000].
 
 **Input parameters:**
 
@@ -238,6 +256,7 @@ If the query appears more than 1000 times in the corpus, the distribution return
 | `index` | see overview | see overview |
 | `query_type` | see overview | `ntd` |
 | `query` or `query_ids` | The (n-1)-gram to query | Any string or list of integers (empty is OK) |
+| [Optional] `max_support` | The maximum (n-1)-gram frequency before subsampling happens. | An integer in range [1, 1000], default = 1000 |
 
 **Output parameters:**
 
@@ -259,8 +278,9 @@ This query type computes the ∞-gram LM probability of the last token of the qu
 In contrast to n-gram, the ∞-gram LM uses the longest possible (n-1)-gram suffix as context, as long as the count of this (n-1)-gram is non-zero.
 For more details on the ∞-gram LM, please refer to our paper.
 
-**Example:**
-If you query `I love natural language processing`, and `natural language` appears in the corpus but `love natural language` does not, then the API returns P(`processing` | `natural language`).
+**Examples:**
+
+* If you query `I love natural language processing`, and `natural language` appears in the corpus but `love natural language` does not, then the API returns P(`processing` | `natural language`).
 
 **Input parameters:**
 
@@ -292,8 +312,9 @@ This query type computes the full next-token distribution according to the ∞-g
 It uses the longest possible (n-1)-gram suffix of the query as context, as long as the count of this (n-1)-gram is non-zero.
 For more details on the ∞-gram LM, please refer to our paper.
 
-**Example:**
-If you query `I love natural language`, and `natural language` appears in the corpus but `love natural language` does not, then the API returns P(* | `natural language`) for all possible tokens *.
+**Examples:**
+
+* If you query `I love natural language`, and `natural language` appears in the corpus but `love natural language` does not, then the API returns P(* | `natural language`) for all possible tokens *.
 
 **Input parameters:**
 
@@ -302,6 +323,7 @@ If you query `I love natural language`, and `natural language` appears in the co
 | `index` | see overview | see overview |
 | `query_type` | see overview | `infgram_ntd` |
 | `query` or `query_ids` | The sequence to query | Any string or list of integers (empty is OK) |
+| [Optional] `max_support` | The maximum (n-1)-gram frequency before subsampling happens. | An integer in range [1, 1000], default = 1000 |
 
 **Output parameters:**
 
@@ -334,13 +356,12 @@ You can also connect multiple strings with the AND/OR operators, in the [CNF for
 
 If you want another batch of random documents, simply submit the same query again :)
 
-**Notes:**
+**Notes on CNF queries:**
 
 * When you write a query in CNF, note that **OR has higher precedence than AND** (which is contrary to conventions in boolean algebra).
-* If the document is too long, it will be truncated to 5000 tokens.
-* We can only include documents where all clauses are separated by no more than 100 tokens.
-* If you query for two or more clauses, and a clause has more than 50000 matches, we will estimate the count from a random subset of all documents containing that clause. This might cause a zero count on conjuction of some simple clauses (e.g., `birds AND oil`).
-* The number of found documents may contain duplicates (e.g., if a document contains your query term twice, it may be counted twice).
+* In AND queries, we can only examine co-occurrences where adjacent clauses are separated by no more than 100 tokens. You can customize this value by supplying a field `max_diff_tokens` with an integer value within range [1, 1000].
+* In AND queries, if a clause has more than 50000 matches, the count will be **approximate**: we will estimate the count by examining a random subset of 50000 documents out of all documents containing that clause. You can customize this value by supplying a field `max_clause_freq` with an integer value within range [1, 500000].
+* The above subsampling mechanism might cause a zero count on conjuction of some simple clauses (e.g., `birds AND oil`).
 
 **Input parameters:**
 
@@ -349,7 +370,10 @@ If you want another batch of random documents, simply submit the same query agai
 | `index` | see overview | see overview |
 | `query_type` | see overview | `search_docs` |
 | `query` or `query_ids` | The search query | If `query`: A non-empty string, or several such strings connected with the AND/OR operators. If `query_ids`: A list of integers, or a triply-nested list of integers (see below for details). |
-| `maxnum` | The max number of documents to return | An integer in range [1, 10] |
+| [Optional] `maxnum` | The max number of documents to return | An integer in range [1, 10], default = 1 |
+| [Optional] `max_disp_len` | The max number of tokens to return for each document | An integer in range [1, 10000], default = 1000 |
+| [Optional] `max_clause_freq` | For CNF queries only. The maximum clause frequency before subsampling happens. | An integer in range [1, 500000], default = 50000 |
+| [Optional] `max_diff_tokens` | For CNF queries only. The maximum distance between adjacent clauses. | An integer in range [1, 1000], default = 100 |
 
 If you input `query_ids`, it should be either a list of integers (for simple queries), or a list of list of list of integers (for CNF queries).
 In case of CNF queries:
@@ -370,5 +394,8 @@ Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2
 | `token_ids` | The token IDs in the tokenized query | A list of integers, or a triply-nested list of integers |
 | `tokens` | The tokens in the tokenized query | A list of strings, or a triply-nested list of strings |
 | `latency` | see overview | see overview |
-| `documents` | The list of documents that match the query | A list of Documents, where each Document is a dict with the following keys: `doc_ix` (int, the index of this document in the corpus), `doc_len` (int, the total number of tokens in this document), `disp_len` (int, the number of tokens returned after truncation), `token_ids` (a list of integers: the tokenized version of the document), `spans` (a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches; if this span does not match any clause, this element is NULL) |
+| `cnt` | The number of occurrences of the query | A non-negative integer |
+| `approx` | Whether the count is approximate | False (for exact) and True (for approximate) |
+| `idxs` | The indexes of the returned documents within all matches | A list of non-negative integers |
+| `documents` | A list of documents randomly sampled from those that match the query | A list of Documents, where each Document is a dict with the following keys: `doc_ix` (int, the index of this document in the corpus), `doc_len` (int, the total number of tokens in this document), `disp_len` (int, the number of tokens returned after truncation), `token_ids` (a list of integers: the tokenized version of the document), `spans` (a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches; if this span does not match any clause, this second element is NULL) |
 | `message` | A message describing the total number of matched documents | A string |
