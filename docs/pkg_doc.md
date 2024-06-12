@@ -11,6 +11,9 @@ You can access all functionalities offered by the API Endpoint and the Web Inter
 Currently the package supports running the engine on existing infini-gram indexes, which we have opened up for download.
 We will soon support building new indexes yourself on datasets of your choice.
 
+---
+<br/>
+
 ## Overview
 
 Running the infini-gram engine is easy!
@@ -30,6 +33,9 @@ Here's a minimal example:
 {'count': 76, 'approx': False}
 ```
 
+---
+<br/>
+
 ## This Python Package vs. the API Endpoint
 
 The Python package has all the functionalities of the API endpoint, plus a few extra features:
@@ -42,11 +48,14 @@ There are a few other distinctions:
 1. The input field `query_ids` is replaced by more specific names: `input_ids`, `cnf`, `prompt_ids` and/or `cont_ids`.
 1. The output does not contain fields `token_ids`, `tokens`, and `latency`.
 
+---
+<br/>
+
 ## Installation
 
 1. Check your system and make sure it satisfies the following requirements:
   * This package should work on any Linux distribution. Sorry no MacOS or Windows support :)
-  * Supported architectures are `x86_64` and `i686`.
+  * Supported architectures are x86_64 and i686.
   * Your system needs to be little-endian. This should be the case for most modern machines.
   * Please make sure you have Python >=3.8 (and strictly speaking, CPython, not PyPy or some other implementations).
 
@@ -58,24 +67,33 @@ There are a few other distinctions:
 
 We have made the following indexes publicly available on AWS S3.
 
-Smaller indexes are stored in the `s3://infini-gram-lite` bucket and can be downloaded for free and without an AWS account.
+Smaller indexes are stored in the <s3://infini-gram-lite> bucket and can be downloaded for free and without an AWS account.
 These indexes are `v4_pileval_llama`, `v4_pileval_gpt2`, and `v4_dolmasample_olmo`.
-To download, run command `aws s3 cp --no-sign-request --recursive {S3_URL} {LOCAL_INDEX_PATH}`
+To download, run command
+```bash
+aws s3 cp --no-sign-request --recursive {S3_URL} {LOCAL_INDEX_PATH}
+```
 
-Larger indexes are stored in the `s3://infini-gram` bucket.
+Larger indexes are stored in the <s3://infini-gram> bucket.
 To download these indexes, you need to pay for the data transfer fee (~$0.09 per GB according to [AWS S3 pricing](https://aws.amazon.com/s3/pricing/)).
 Make sure you have correctly set up your AWS credentials before downloading these indexes.
 These indexes are `v4_rpj_llama_s4`, `v4_piletrain_llama`, and `v4_c4train_llama`.
-To download, run command `aws s3 cp --request-payer requester --recursive {S3_URL} {LOCAL_INDEX_PATH}`
+To download, run command
+```bash
+aws s3 cp --request-payer requester --recursive {S3_URL} {LOCAL_INDEX_PATH}
+```
 
 | Name | Documents | Tokens | Storage | Corpus | Tokenizer | S3 URL |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | 8.9TiB | [RedPajama](https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | <s3://infini-gram/index/v4_rpj_llama_s4> |
-| `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | 2.5TiB | [Pile-train](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | <s3://infini-gram/index/v4_piletrain_llama> |
-| `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | 1.3TiB | [C4-train](https://huggingface.co/datasets/allenai/c4) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | <s3://infini-gram/index/v4_c4train_llama> |
-| `v4_pileval_llama` | 214,670 | 393,769,120 | 2.3GiB | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | <s3://infini-gram-lite/index/v4_pileval_llama> |
-| `v4_pileval_gpt2` | 214,670 | 383,326,404 | 2.2GiB | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [GPT-2](https://huggingface.co/gpt2) | <s3://infini-gram-lite/index/v4_pileval_gpt2> |
-| `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | 53GiB | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [OLMo](https://huggingface.co/allenai/OLMo-7B) | <s3://infini-gram-lite/index/v4_dolmasample_olmo> |
+| `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | 8.9TiB | [RedPajama](https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_rpj_llama_s4](s3://infini-gram/index/v4_rpj_llama_s4) |
+| `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | 2.5TiB | [Pile-train](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_piletrain_llama](s3://infini-gram/index/v4_piletrain_llama) |
+| `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | 1.3TiB | [C4-train](https://huggingface.co/datasets/allenai/c4) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_c4train_llama](s3://infini-gram/index/v4_c4train_llama) |
+| `v4_pileval_llama` | 214,670 | 393,769,120 | 2.3GiB | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram-lite/index/v4_pileval_llama](s3://infini-gram-lite/index/v4_pileval_llama) |
+| `v4_pileval_gpt2` | 214,670 | 383,326,404 | 2.2GiB | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [GPT-2](https://huggingface.co/gpt2) | [s3://infini-gram-lite/index/v4_pileval_gpt2](s3://infini-gram-lite/index/v4_pileval_gpt2) |
+| `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | 53GiB | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [OLMo](https://huggingface.co/allenai/OLMo-7B) | [s3://infini-gram-lite/index/v4_dolmasample_olmo](s3://infini-gram-lite/index/v4_dolmasample_olmo) |
+
+---
+<br/>
 
 ## Usage
 
@@ -88,6 +106,9 @@ As an example, below we create an engine with the index for Pile-val (the valida
 >>> tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", add_bos_token=False, add_eos_token=False) # the tokenizer should match that of the index you load below
 >>> engine = InfiniGramEngine(index_dir='index/v4_pileval_llama', eos_token_id=tokenizer.eos_token_id) # please replace index_dir with the local directory where you store the index
 ```
+
+---
+<br/>
 
 ### 1. Count an n-gram (**`count()`** and **`count_cnf()`**)
 
@@ -126,7 +147,9 @@ And each n-gram term has the same format as `input_ids` above, i.e., a list of t
 
 >>> engine.count_cnf(cnf=cnf)
 {'count': 499, 'approx': False}
+```
 
+```python
 # natural language processing AND deep learning
 >>> cnf = [
 ...     [tokenizer.encode(' natural language processing')],
@@ -137,7 +160,9 @@ And each n-gram term has the same format as `input_ids` above, i.e., a list of t
 
 >>> engine.count_cnf(cnf=cnf)
 {'count': 6, 'approx': False}
+```
 
+```python
 # (natural language processing OR artificial intelligence) AND deep learning
 >>> cnf = [
 ...     [tokenizer.encode(' natural language processing'), tokenizer.encode(' artificial intelligence')],
@@ -184,6 +209,9 @@ Increasing this value and you will get more accurate estimate of the count, and 
 {'count': 480107, 'approx': False}
 ```
 
+---
+<br/>
+
 ### 2. Prob of the last token (**`prob()`**)
 
 This query type computes the n-gram LM probability of a token conditioning on a preceding prompt.
@@ -209,6 +237,9 @@ In these cases we report `prob = -1.0` to indicate an error:
 >>> engine.prob(prompt_ids=input_ids[:-1], cont_id=input_ids[-1])
 {'prompt_cnt': 0, 'cont_cnt': 0, 'prob': -1.0}
 ```
+
+---
+<br/>
 
 ### 3. Next-token distribution (**`ntd()`**)
 
@@ -246,6 +277,9 @@ For example, to get the unigram token distribution, you can query with an empty 
 {'prompt_cnt': 393769120, 'result_by_token_id': {12: {'cont_cnt': 1013873, 'prob': 0.00257479052699714}, 13: {'cont_cnt': 14333030, 'prob': 0.03639957851443506}, ..., 30934: {'cont_cnt': 489584, 'prob': 0.0012433275621003496}}, 'approx': True}
 ```
 
+---
+<br/>
+
 ### 4. ∞-gram prob (**`infgram_prob()`**)
 
 This query type computes the ∞-gram LM probability of a token conditioning on a preceding prompt.
@@ -262,6 +296,9 @@ It uses the longest suffix of the prompt that has a non-zero count in the corpus
 The field `suffix_len` indicates the number of tokens in the longest suffix of the prompt.
 In this case, since `[5613, 4086]` can be found in the corpus, but `[5360, 5613, 4086]` cannot, the longest suffix is `[5613, 4086]`, which has length 2.
 
+---
+<br/>
+
 ### 5. ∞-gram next-token distribution (**`infgram_ntd()`**)
 
 This query type computes the ∞-gram LM next-token distribution conditioning on a preceding prompt.
@@ -274,6 +311,9 @@ This query type computes the ∞-gram LM next-token distribution conditioning on
 >>> engine.infgram_ntd(prompt_ids=input_ids, max_support=10)
 {'prompt_cnt': 257, 'result_by_token_id': {297: {'cont_cnt': 32, 'prob': 0.1245136186770428}, 470: {'cont_cnt': 32, 'prob': 0.1245136186770428}, 508: {'cont_cnt': 1, 'prob': 0.0038910505836575876}, 8004: {'cont_cnt': 32, 'prob': 0.1245136186770428}, 9068: {'cont_cnt': 96, 'prob': 0.3735408560311284}, 24481: {'cont_cnt': 32, 'prob': 0.1245136186770428}, 29889: {'cont_cnt': 32, 'prob': 0.1245136186770428}}, 'approx': True, 'suffix_len': 2}
 ```
+
+---
+<br/>
 
 ### 6. Search documents (**`search_docs()`** and **`search_docs_cnf()`**)
 
@@ -312,6 +352,9 @@ The method name is `search_docs_cnf()` and its protocol is same as `count_cnf()`
 ```
 Again, you can also use `max_clause_freq` and `max_diff_tokens` to control the behavior of CNF queries.
 Note that when the CNF query contains AND operator(s) the the count is approximate, the actual number of retrievable documents will be fewer than the reported count (since this count accounted for the subsampling).
+
+---
+<br/>
 
 ### 6.1 Enumerating all documents containing your query
 
@@ -379,12 +422,18 @@ To enumerate all documents, you can do something like
 ...         doc = engine.get_doc_by_ptr(s=s, ptr=ptr)
 ```
 
+---
+<br/>
+
 ## License
 
 This package is licensed under the [UW Academic Software License](https://infini-gram.io/LICENSE).
 Use by universities and non-profit institutions is allowed.
 Commercial use is not allowed.
 A copy of the license is enclosed with the package distribution.
+
+---
+<br/>
 
 ## Citation
 

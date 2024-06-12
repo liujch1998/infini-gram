@@ -3,8 +3,8 @@ author: Jiacheng (Gary) Liu
 email: liujc [at] cs.washington.edu
 
 header_pages:
-  - index.md
   - api_doc.md
+  - pkg_doc.md
 
 theme: minima
 

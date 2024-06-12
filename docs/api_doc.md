@@ -208,7 +208,7 @@ It treats your query as an n-gram, counts the full n-gram and also the (n-1)-gra
 
 **Examples:**
 
-* If you query `natural language processing`, the API returns P(`processing` | `natural language`) = Cnt(`natural language processing`) / Cnt(`natural language`).
+* If you query `natural language processing`, the API returns `P(processing | natural language) = Cnt(natural language processing) / Cnt(natural language)`.
 
 **Notes:**
 
@@ -242,7 +242,7 @@ This query type treats your query as the (n-1)-gram as in query type 2, and retu
 
 **Examples:**
 
-* If you query `natural language`, the API returns P(* | `natural language`) for all possible tokens *.
+* If you query `natural language`, the API returns `P(* | natural language)` for all possible tokens `*`.
 
 **Notes:**
 
@@ -280,7 +280,7 @@ For more details on the ∞-gram LM, please refer to our paper.
 
 **Examples:**
 
-* If you query `I love natural language processing`, and `natural language` appears in the corpus but `love natural language` does not, then the API returns P(`processing` | `natural language`).
+* If you query `I love natural language processing`, and `natural language` appears in the corpus but `love natural language` does not, then the API returns `P(processing | natural language)`.
 
 **Input parameters:**
 
@@ -314,7 +314,7 @@ For more details on the ∞-gram LM, please refer to our paper.
 
 **Examples:**
 
-* If you query `I love natural language`, and `natural language` appears in the corpus but `love natural language` does not, then the API returns P(* | `natural language`) for all possible tokens *.
+* If you query `I love natural language`, and `natural language` appears in the corpus but `love natural language` does not, then the API returns `P(* | natural language)` for all possible tokens `*`.
 
 **Input parameters:**
 
@@ -399,3 +399,18 @@ Here are some examples of equivalent `query` and `query_ids` (Assuming a Llama-2
 | `idxs` | The indexes of the returned documents within all matches | A list of non-negative integers |
 | `documents` | A list of documents randomly sampled from those that match the query | A list of Documents, where each Document is a dict with the following keys: `doc_ix` (int, the index of this document in the corpus), `doc_len` (int, the total number of tokens in this document), `disp_len` (int, the number of tokens returned after truncation), `token_ids` (a list of integers: the tokenized version of the document), `spans` (a list of tuples: each tuple's first element is a span of text and it second element is a string marking the index of the clause that this span matches; if this span does not match any clause, this second element is NULL) |
 | `message` | A message describing the total number of matched documents | A string |
+
+---
+<br/>
+
+## Citation
+
+If you find infini-gram useful, please kindly cite our paper:
+```bibtex
+@article{Liu2024InfiniGram,
+  title={Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens},
+  author={Liu, Jiacheng and Min, Sewon and Zettlemoyer, Luke and Choi, Yejin and Hajishirzi, Hannaneh},
+  journal={arXiv preprint arXiv:2401.17377},
+  year={2024}
+}
+```
