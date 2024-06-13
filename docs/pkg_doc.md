@@ -26,7 +26,7 @@ Here's a minimal example:
 >>> tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", add_bos_token=False, add_eos_token=False)
 >>> engine = InfiniGramEngine(index_dir='index/v4_pileval_llama', eos_token_id=tokenizer.eos_token_id)
 
->>> input_ids = tokenizer.encode(' natural language processing') # prepend space to indicate beginning of word
+>>> input_ids = tokenizer.encode('natural language processing')
 >>> input_ids
 [5613, 4086, 9068]
 >>> engine.count(input_ids=input_ids)
@@ -61,7 +61,7 @@ There are a few other distinctions:
 
 2. Install this package: `pip install infini-gram`
 
-3. Download the infini-gram index that you would like to query. See details in the "Pre-built Indexes" section below.
+3. Download the infini-gram index that you would like to query. For sake of performance, it is strongly recommended that you put the index on an SSD. See details in the "Pre-built Indexes" section below.
 
 ### Pre-built Indexes
 
@@ -115,7 +115,7 @@ As an example, below we create an engine with the index for Pile-val (the valida
 This query type counts the number of times the query string appears in the corpus.
 For example, to find out the number of occurrences of n-gram `natural language processing` in the Pile-val corpus,
 ```python
->>> input_ids = tokenizer.encode(' natural language processing')
+>>> input_ids = tokenizer.encode('natural language processing')
 >>> input_ids
 [5613, 4086, 9068]
 
@@ -140,7 +140,7 @@ And each n-gram term has the same format as `input_ids` above, i.e., a list of t
 ```python
 # natural language processing OR artificial intelligence
 >>> cnf = [
-...     [tokenizer.encode(' natural language processing'), tokenizer.encode(' artificial intelligence')]
+...     [tokenizer.encode('natural language processing'), tokenizer.encode('artificial intelligence')]
 ... ]
 >>> cnf
 [[[5613, 4086, 9068], [23116, 21082]]]
@@ -152,8 +152,8 @@ And each n-gram term has the same format as `input_ids` above, i.e., a list of t
 ```python
 # natural language processing AND deep learning
 >>> cnf = [
-...     [tokenizer.encode(' natural language processing')],
-...     [tokenizer.encode(' deep learning')],
+...     [tokenizer.encode('natural language processing')],
+...     [tokenizer.encode('deep learning')],
 ... ]
 >>> cnf
 [[[5613, 4086, 9068]], [[6483, 6509]]]
@@ -165,8 +165,8 @@ And each n-gram term has the same format as `input_ids` above, i.e., a list of t
 ```python
 # (natural language processing OR artificial intelligence) AND deep learning
 >>> cnf = [
-...     [tokenizer.encode(' natural language processing'), tokenizer.encode(' artificial intelligence')],
-...     [tokenizer.encode(' deep learning')],
+...     [tokenizer.encode('natural language processing'), tokenizer.encode('artificial intelligence')],
+...     [tokenizer.encode('deep learning')],
 ... ])
 >>> cnf
 [[[5613, 4086, 9068], [23116, 21082]], [[6483, 6509]]]
@@ -182,8 +182,8 @@ Increasing this value and you may get more counts:
 ```python
 # natural language processing AND deep learning
 >>> engine.count_cnf(cnf=[
-...     [tokenizer.encode(' natural language processing')],
-...     [tokenizer.encode(' deep learning')],
+...     [tokenizer.encode('natural language processing')],
+...     [tokenizer.encode('deep learning')],
 ... ], max_diff_tokens=1000)
 {'count': 14, 'approx': False}
 ```
@@ -191,21 +191,21 @@ However, if one of the clauses have a too high count, it will be inpractical to 
 Our solution is to take a subsample of its occurrences when the count is higher than a threshold, controlled by the optional parameter `max_clause_freq`, which has a default value of 50000.
 When subsampling happens on any of the clauses, the count will be reported as approximate:
 ```python
->>> engine.count(input_ids=[tokenizer.encode(' this')])
+>>> engine.count(input_ids=tokenizer.encode('this'))
 {'count': 739845, 'approx': False}
->>> engine.count(input_ids=[tokenizer.encode(' that')])
+>>> engine.count(input_ids=tokenizer.encode('that'))
 {'count': 1866317, 'approx': False}
 
 # this AND that
->>> engine.count_cnf(cnf=[[tokenizer.encode(' this')], [tokenizer.encode(' that')]])
+>>> engine.count_cnf(cnf=[[tokenizer.encode('this')], [tokenizer.encode('that')]])
 {'count': 982128, 'approx': True}
 ```
 Increasing this value and you will get more accurate estimate of the count, and when this value is larger than (or equal to) the count of all clauses, the count becomes exact.
 ```python
->>> engine.count_cnf(cnf=[[tokenizer.encode(' this')], [tokenizer.encode(' that')]], max_clause_freq=500000)
+>>> engine.count_cnf(cnf=[[tokenizer.encode('this')], [tokenizer.encode('that')]], max_clause_freq=500000)
 {'count': 430527, 'approx': True}
 
->>> engine.count_cnf(cnf=[[tokenizer.encode(' this')], [tokenizer.encode(' that')]], max_clause_freq=2000000)
+>>> engine.count_cnf(cnf=[[tokenizer.encode('this')], [tokenizer.encode('that')]], max_clause_freq=2000000)
 {'count': 480107, 'approx': False}
 ```
 
@@ -218,7 +218,7 @@ This query type computes the n-gram LM probability of a token conditioning on a 
 
 For example, to compute `P(processing | natural language)`:
 ```python
->>> input_ids = tokenizer.encode(' natural language processing')
+>>> input_ids = tokenizer.encode('natural language processing')
 >>> input_ids
 [5613, 4086, 9068]
 
@@ -230,7 +230,7 @@ In this case, `prompt_cnt` is the count of the 2-gram `natural language`, `cont_
 If the prompt cannot be found in the corpus, the probability would be 0/0=NaN.
 In these cases we report `prob = -1.0` to indicate an error:
 ```python
->>> input_ids = tokenizer.encode(' I love natural language processing')
+>>> input_ids = tokenizer.encode('I love natural language processing')
 >>> input_ids
 [306, 5360, 5613, 4086, 9068]
 
@@ -247,7 +247,7 @@ This query type computes the n-gram LM next-token distribution conditioning on a
 
 For example, this will return the token distribution following `natural language`:
 ```python
->>> input_ids = tokenizer.encode(' natural language')
+>>> input_ids = tokenizer.encode('natural language')
 >>> input_ids
 [5613, 4086]
 
@@ -258,7 +258,7 @@ For example, this will return the token distribution following `natural language
 
 If the prompt cannot be found in the corpus, you will get an empty distribution:
 ```python
->>> input_ids = tokenizer.encode(' I love natural language processing')
+>>> input_ids = tokenizer.encode('I love natural language processing')
 >>> input_ids
 [306, 5360, 5613, 4086, 9068]
 
@@ -286,7 +286,7 @@ This query type computes the ∞-gram LM probability of a token conditioning on 
 It uses the longest suffix of the prompt that has a non-zero count in the corpus.
 
 ```python
->>> input_ids = tokenizer.encode(' I love natural language processing')
+>>> input_ids = tokenizer.encode('I love natural language processing')
 >>> input_ids
 [306, 5360, 5613, 4086, 9068]
 
@@ -304,7 +304,7 @@ In this case, since `[5613, 4086]` can be found in the corpus, but `[5360, 5613,
 This query type computes the ∞-gram LM next-token distribution conditioning on a preceding prompt.
 
 ```python
->>> input_ids = tokenizer.encode(' I love natural language')
+>>> input_ids = tokenizer.encode('I love natural language')
 >>> input_ids
 [306, 5360, 5613, 4086]
 
@@ -323,7 +323,7 @@ In addition to returning the count of occurrences matching your query, it will a
 
 For example, to get a random document containing `natural language processing`, you can use the `search_docs()` method:
 ```python
->>> input_ids = tokenizer.encode(' natural language processing')
+>>> input_ids = tokenizer.encode('natural language processing')
 >>> input_ids
 [5613, 4086, 9068]
 
@@ -341,8 +341,8 @@ The method name is `search_docs_cnf()` and its protocol is same as `count_cnf()`
 ```python
 # natural language processing AND deep learning
 >>> cnf = [
-...     [tokenizer.encode(' natural language processing')],
-...     [tokenizer.encode(' deep learning')],
+...     [tokenizer.encode('natural language processing')],
+...     [tokenizer.encode('deep learning')],
 ... ]
 >>> cnf
 [[[5613, 4086, 9068]], [[6483, 6509]]]
@@ -363,7 +363,7 @@ If you want to enumerate all these documents sequentially, there's a way to do i
 
 For simple queries, you need to first call `find()` to get information about where the matching documents are located.
 ```python
->>> input_ids = tokenizer.encode(' natural language processing')
+>>> input_ids = tokenizer.encode('natural language processing')
 >>> input_ids
 [5613, 4086, 9068]
 
@@ -393,8 +393,8 @@ For CNF queries, you need to first call `find_cnf()` which returns locations of 
 ```python
 # natural language processing AND deep learning
 >>> cnf = [
-...     [tokenizer.encode(' natural language processing')],
-...     [tokenizer.encode(' deep learning')],
+...     [tokenizer.encode('natural language processing')],
+...     [tokenizer.encode('deep learning')],
 ... ]
 >>> cnf
 [[[5613, 4086, 9068]], [[6483, 6509]]]
