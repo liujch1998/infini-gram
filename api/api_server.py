@@ -249,6 +249,63 @@ class Processor:
             spans.append((haystack, None))
         return spans
 
+    def find(self, query_ids):
+        return self.engine.find(input_ids=query_ids)
+
+    def find_cnf(self, query_ids, max_clause_freq=None, max_diff_tokens=None):
+        if max_clause_freq is not None and not (type(max_clause_freq) == int and 0 < max_clause_freq and max_clause_freq <= args.MAX_CLAUSE_FREQ):
+            return {'error': f'max_clause_freq must be an integer in [1, {args.MAX_CLAUSE_FREQ}]!'}
+        if max_diff_tokens is not None and not (type(max_diff_tokens) == int and 0 < max_diff_tokens and max_diff_tokens <= args.MAX_DIFF_TOKENS):
+            return {'error': f'max_diff_tokens must be an integer in [1, {args.MAX_DIFF_TOKENS}]!'}
+        return self.engine.find_cnf(cnf=query_ids, max_clause_freq=max_clause_freq, max_diff_tokens=max_diff_tokens)
+
+    def get_doc_by_rank(self, query_ids, s, rank, max_disp_len=None):
+        if max_disp_len is not None and not (type(max_disp_len) == int and 0 < max_disp_len and max_disp_len <= args.MAX_DISP_LEN):
+            return {'error': f'max_disp_len must be an integer in [1, {args.MAX_DISP_LEN}]!'}
+        result = self.engine.get_doc_by_rank(s=s, rank=rank, max_disp_len=max_disp_len)
+        if 'error' in result:
+            return result
+
+        token_ids = result['token_ids']
+        spans = [(token_ids, None)]
+        if len(query_ids) > 0:
+            needle = query_ids
+            new_spans = []
+            for span in spans:
+                if span[1] is not None:
+                    new_spans.append(span)
+                else:
+                    haystack = span[0]
+                    new_spans += self._replace(haystack, needle, label='0')
+            spans = new_spans
+        spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
+        result['spans'] = spans
+        return result
+
+    def get_doc_by_ptr(self, query_ids, s, ptr, max_disp_len=None):
+        if max_disp_len is not None and not (type(max_disp_len) == int and 0 < max_disp_len and max_disp_len <= args.MAX_DISP_LEN):
+            return {'error': f'max_disp_len must be an integer in [1, {args.MAX_DISP_LEN}]!'}
+        result = self.engine.get_doc_by_ptr(s=s, ptr=ptr, max_disp_len=max_disp_len)
+        if 'error' in result:
+            return result
+
+        cnf = query_ids
+        token_ids = result['token_ids']
+        spans = [(token_ids, None)]
+        for d, clause in enumerate(cnf):
+            for needle in clause:
+                new_spans = []
+                for span in spans:
+                    if span[1] is not None:
+                        new_spans.append(span)
+                    else:
+                        haystack = span[0]
+                        new_spans += self._replace(haystack, needle, label=f'{d}')
+                spans = new_spans
+        spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
+        result['spans'] = spans
+        return result
+
 PROCESSOR_BY_INDEX = {}
 with open(args.CONFIG_FILE) as f:
     configs = json.load(f)
@@ -269,7 +326,7 @@ def query():
     log.flush()
 
     index = data['corpus'] if 'corpus' in data else (data['index'] if 'index' in data else None)
-    if 'dolma-v1_6' in index and DOLMA_API_URL is not None:
+    if 'dolma-' in index and DOLMA_API_URL is not None:
         try:
             response = requests.post(DOLMA_API_URL, json=data, timeout=10)
         except requests.exceptions.Timeout:
