@@ -1,57 +1,67 @@
 [
-    {   
-        "name": "v4_dolma-v1_6-sample_llama",
+    {
+        "corpus": "v4_dolma-v1_6-sample_llama",
         "dir": "/data-v4-dolma-v1_6-sample-llama/v4_dolma-v1_6-sample_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-wiki_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_dolma-v1_6-wiki_llama",
         "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-wiki_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-books_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_dolma-v1_6-books_llama",
         "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-books_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-pes2o_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_dolma-v1_6-pes2o_llama",
         "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-pes2o_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-reddit_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_dolma-v1_6-reddit_llama",
         "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-reddit_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-c4_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_dolma-v1_6-c4_llama",
         "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-c4_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-stack_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_dolma-v1_6-stack_llama",
         "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-stack_llama",
-        "tokenizer": "llama"
-    },  
-     {   
-        "name": "v4_dolma-v1_6-cc_en_head_llama",
+        "tokenizer": "llama",
+        "eos_token_id": 2
+    },
+    {
+        "corpus": "v4_dolma-v1_6-cc_en_head_llama",
         "dir": "/data-v4-dolma-v1_6-cc_en_head-llama/v4_dolma-v1_6-cc_en_head_llama",
-        "tokenizer": "llama"
+        "tokenizer": "llama",
+        "eos_token_id": 2
     },
-    {   
-        "name": "v4_dolma-v1_6-cc_en_middle_llama",
+    {
+        "corpus": "v4_dolma-v1_6-cc_en_middle_llama",
         "dir": "/data-v4-dolma-v1_6-cc_en_middle-llama/v4_dolma-v1_6-cc_en_middle_llama",
-        "tokenizer": "llama"
+        "tokenizer": "llama",
+        "eos_token_id": 2
     },
-    {   
-        "name": "v4_dolma-v1_6-cc_en_tail_llama",
+    {
+        "corpus": "v4_dolma-v1_6-cc_en_tail_llama",
         "dir": "/data-v4-dolma-v1_6-cc_en_tail-llama/v4_dolma-v1_6-cc_en_tail_llama",
-        "tokenizer": "llama"
+        "tokenizer": "llama",
+        "eos_token_id": 2
     },
-    {   
-        "name": "v4_dolma-v1_6_llama",
-        "dir": [
+    {
+        "corpus": "v4_dolma-v1_6_llama",
+        "dirs": [
             "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-wiki_llama",
             "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-books_llama",
             "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-pes2o_llama",
@@ -62,14 +72,7 @@
             "/data-v4-dolma-v1_6-cc_en_middle-llama/v4_dolma-v1_6-cc_en_middle_llama",
             "/data-v4-dolma-v1_6-cc_en_tail-llama/v4_dolma-v1_6-cc_en_tail_llama"
         ],
-        "tokenizer": "llama"
-    },
-    {
-        "name": "v4_dolma-v1_7_llama",
-        "dir": [
-            "/data-v4-dolma-v1_7-s0-llama/v4_dolma-v1_7-s0_llama",
-            "/data-v4-dolma-v1_7-s1-llama/v4_dolma-v1_7-s1_llama"
-        ],
-        "tokenizer": "llama"
+        "tokenizer": "llama",
+        "eos_token_id": 2
     }
 ]
