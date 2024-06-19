@@ -8,6 +8,6 @@ dependencies:
     - transformers==4.40.2
     # - tokenizers==0.15.0
     - zstandard==0.22.0
-    # - protobuf==3.20.3
-  # - sentencepiece=0.1.96
+    - protobuf==3.20.3 # required by llama tokenizer
+  - sentencepiece=0.1.96 # required by llama tokenizer
   # - numpy
