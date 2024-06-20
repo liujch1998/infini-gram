@@ -7,11 +7,9 @@ import numpy as np
 import os
 import resource
 import shutil
-import struct
 import sys
 import time
 from tqdm import tqdm
-import transformers
 
 HACK = 100000
 
@@ -65,6 +63,8 @@ def tokenize(args):
 
     print('Step 1 (tokenize): Starting ...')
 
+    import transformers
+    transformers.utils.logging.set_verbosity(40) # suppress warnings
     global tokenizer
     if args.tokenizer == 'gpt2':
         tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2', use_fast=False, add_bos_token=False, add_eos_token=False)
@@ -224,10 +224,6 @@ def build_sa(args):
 
 def main():
 
-    assert sys.byteorder == 'little'
-    transformers.utils.logging.set_verbosity(40) # suppress warnings
-    resource.setrlimit(resource.RLIMIT_NOFILE, (1048576, 1048576))
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, required=True, help='Directory containing the raw text corpus. Must be absolute path.')
     parser.add_argument('--temp_dir', type=str, default=None, help='Directory where temporary files are stored. Must be absolute path.')
@@ -241,6 +237,7 @@ def main():
     parser.add_argument('--workers', type=int, default=1, help='Must be a divisor of shards. Typically should be a power of 2.')
     parser.add_argument('--worker_id', type=int, default=0)
     parser.add_argument('--add_metadata', default=False, action='store_true')
+    parser.add_argument('--ulimit', type=int, default=1048576, help='Maximum number of open files allowed.')
     args = parser.parse_args()
     if args.temp_dir is None:
         args.temp_dir = args.save_dir
@@ -258,6 +255,9 @@ def main():
     assert os.path.exists(args.data_dir)
     os.makedirs(args.temp_dir, exist_ok=True)
     os.makedirs(args.save_dir, exist_ok=True)
+
+    assert sys.byteorder == 'little'
+    resource.setrlimit(resource.RLIMIT_NOFILE, (args.ulimit, args.ulimit))
 
     tokenize(args)
     build_sa(args)

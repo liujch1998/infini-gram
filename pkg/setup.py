@@ -3,6 +3,7 @@
 
 # cibuildwheel --output-dir wheelhouse
 # twine upload --repository testpypi wheelhouse/*
+# twine upload wheelhouse/*
 
 import setuptools
 from setuptools import setup, Extension
@@ -38,7 +39,7 @@ ext_modules = [
 class CustomInstallCommand(install):
     def run(self):
         install.run(self)
-        os.popen('cargo build --release').read()
+        os.popen('curl -sSf https://sh.rustup.rs | sh -s -- -y && . "/root/.cargo/env" && cargo build --release').read()
         src = os.path.join('target', 'release', 'rust_indexing')
         dest = os.path.join(self.install_lib, 'infini_gram', 'rust_indexing')
         shutil.copyfile(src, dest)
@@ -74,4 +75,5 @@ setup(
     # include_package_data=True,
     license='UW Academic Software License',
     python_requires='>=3.8',
+    install_requires=['tqdm'],
 )
