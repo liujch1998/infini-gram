@@ -15,6 +15,8 @@ Use by universities and non-profit institutions is allowed.
 Commercial use is not allowed.
 A copy of the license is enclosed with the package distribution.
 
+The suffix array implementation is adapted from [Lee et al. (2021)](https://github.com/google-research/deduplicate-text-datasets), which is distributed under Apache-2.0.
+
 ## Citation
 
 If you find infini-gram useful, please kindly cite our paper:

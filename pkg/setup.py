@@ -4,10 +4,12 @@
 # cibuildwheel --output-dir wheelhouse
 # twine upload --repository testpypi wheelhouse/*
 
+import setuptools
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
-import sys
-import setuptools
+from setuptools.command.install import install
+import os
+import shutil
 
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
@@ -33,16 +35,25 @@ ext_modules = [
     ),
 ]
 
+class CustomInstallCommand(install):
+    def run(self):
+        install.run(self)
+        os.popen('cargo build --release').read()
+        src = os.path.join('target', 'release', 'rust_indexing')
+        dest = os.path.join(self.install_lib, 'infini_gram', 'rust_indexing')
+        shutil.copyfile(src, dest)
+        os.chmod(dest, 0o755)
+
 setup(
     name='infini_gram',
-    version='2.0.0',
+    version='2.1.0',
     author='Jiacheng (Gary) Liu',
     author_email='liujc@cs.washington.edu',
     description='A Python package for infini-gram',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     ext_modules=ext_modules,
-    cmdclass={'build_ext': build_ext},
+    cmdclass={'build_ext': build_ext, 'install': CustomInstallCommand},
     zip_safe=False,
     # install_requires=[
     #     'pybind11>=2.5.0',
