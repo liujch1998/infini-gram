@@ -30,6 +30,10 @@ If you find infini-gram useful, please kindly cite our paper:
 
 ## Updates
 
+### 2024-06-28
+
+* Dolma v1.7 is now available! We will deprecate the Dolma v1.6 index (`v4_dolma-v1_6_llama`) on July 7.
+
 ### 2024-06-12
 
 * The `count` query now has two optional fields, `max_clause_freq` and `max_diff_tokens`, both are for customizing CNF queries.
@@ -103,7 +107,7 @@ We have built the infini-gram indexes on several corpora, and you may query them
 
 | Name | Documents | Tokens | Corpus | Tokenizer |
 | --- | ---: | ---: | --- | --- |
-| `v4_dolma-v1_6_llama` | 4,367,212,598 | 3,067,858,892,487 | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
+| `v4_dolma-v1_7_llama` | 3,403,336,408 | 2,604,642,372,173 | [Dolma-v1.7](https://huggingface.co/datasets/allenai/dolma) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
 | `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | [RedPajama](https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
 | `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | [Pile-train](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
 | `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | [C4-train](https://huggingface.co/datasets/allenai/c4) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
@@ -117,7 +121,7 @@ In general, the request JSON payload should be a dict containing the following f
 
 | Key | Description | Acceptable Values |
 | --- | --- | --- |
-| `index` | The index to search in | E.g., `v4_dolma-v1_6_llama`. See full list in the table in the "Available indexes" section above. |
+| `index` | The index to search in | E.g., `v4_rpj_llama_s4`. See full list in the table in the "Available indexes" section above. |
 | `query_type` | One of the six supported query types | `count`, `prob`, `ntd`, `infgram_prob`, `infgram_ntd`, `search_docs` |
 | `query` or `query_ids` | The query (semantic depends on query type) | If `query`: Any string. If `query_ids`: A list of integers. (Empty may be OK depending on query type) |
 
