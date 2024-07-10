@@ -87,6 +87,7 @@ aws s3 cp --request-payer requester --recursive {S3_URL} {LOCAL_INDEX_PATH}
 
 | Name | Documents | Tokens | Storage | Corpus | Tokenizer | S3 URL |
 | --- | ---: | ---: | ---: | --- | --- | --- |
+| `v4_dolma-v1_7_llama` | 3,403,336,408 | 2,604,642,372,173 | 20TiB | [Dolma-v1.7](https://huggingface.co/datasets/allenai/dolma) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_dolma-v1_7_llama](s3://infini-gram/index/v4_dolma-v1_7_llama) |
 | `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | 8.9TiB | [RedPajama](https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_rpj_llama_s4](s3://infini-gram/index/v4_rpj_llama_s4) |
 | `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | 2.5TiB | [Pile-train](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_piletrain_llama](s3://infini-gram/index/v4_piletrain_llama) |
 | `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | 1.3TiB | [C4-train](https://huggingface.co/datasets/allenai/c4) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_c4train_llama](s3://infini-gram/index/v4_c4train_llama) |
