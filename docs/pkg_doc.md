@@ -91,9 +91,10 @@ aws s3 cp --request-payer requester --recursive {S3_URL} {LOCAL_INDEX_PATH}
 | `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | 8.9TiB | [RedPajama](https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_rpj_llama_s4](s3://infini-gram/index/v4_rpj_llama_s4) |
 | `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | 2.5TiB | [Pile-train](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_piletrain_llama](s3://infini-gram/index/v4_piletrain_llama) |
 | `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | 1.3TiB | [C4-train](https://huggingface.co/datasets/allenai/c4) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_c4train_llama](s3://infini-gram/index/v4_c4train_llama) |
+| `v4_dolma-v1_6-sample_llama` | 13,095,416 | 9,178,218,956 | 62GiB | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram/index/v4_dolma-v1_6-sample_llama](s3://infini-gram/index/v4_dolma-v1_6-sample_llama) |
+| `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | 53GiB | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [OLMo](https://huggingface.co/allenai/OLMo-7B) | [s3://infini-gram-lite/index/v4_dolmasample_olmo](s3://infini-gram-lite/index/v4_dolmasample_olmo) |
 | `v4_pileval_llama` | 214,670 | 393,769,120 | 2.3GiB | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) | [s3://infini-gram-lite/index/v4_pileval_llama](s3://infini-gram-lite/index/v4_pileval_llama) |
 | `v4_pileval_gpt2` | 214,670 | 383,326,404 | 2.2GiB | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [GPT-2](https://huggingface.co/gpt2) | [s3://infini-gram-lite/index/v4_pileval_gpt2](s3://infini-gram-lite/index/v4_pileval_gpt2) |
-| `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | 53GiB | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [OLMo](https://huggingface.co/allenai/OLMo-7B) | [s3://infini-gram-lite/index/v4_dolmasample_olmo](s3://infini-gram-lite/index/v4_dolmasample_olmo) |
 
 ---
 <br/>

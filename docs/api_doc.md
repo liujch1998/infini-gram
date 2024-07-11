@@ -111,9 +111,10 @@ We have built the infini-gram indexes on several corpora, and you may query them
 | `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | [RedPajama](https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
 | `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | [Pile-train](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
 | `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | [C4-train](https://huggingface.co/datasets/allenai/c4) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
+| `v4_dolma-v1_6-sample_llama` | 13,095,416 | 9,178,218,956 | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
+| `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [OLMo](https://huggingface.co/allenai/OLMo-7B) |
 | `v4_pileval_llama` | 214,670 | 393,769,120 | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [Llama-2](https://huggingface.co/meta-llama/Llama-2-7b-hf) |
 | `v4_pileval_gpt2` | 214,670 | 383,326,404 | [Pile-val](https://huggingface.co/datasets/EleutherAI/pile) | [GPT-2](https://huggingface.co/gpt2) |
-| `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | [Dolma-v1.6-sample](https://huggingface.co/datasets/allenai/dolma) | [OLMo](https://huggingface.co/allenai/OLMo-7B) |
 
 **Input parameters:**
 

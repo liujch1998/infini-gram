@@ -4,66 +4,6 @@
         "dir": "/data-v4-dolma-v1_6-sample-llama/v4_dolma-v1_6-sample_llama",
         "tokenizer": "llama"
     },  
-    {   
-        "name": "v4_dolma-v1_6-wiki_llama",
-        "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-wiki_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-books_llama",
-        "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-books_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-pes2o_llama",
-        "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-pes2o_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-reddit_llama",
-        "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-reddit_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-c4_llama",
-        "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-c4_llama",
-        "tokenizer": "llama"
-    },  
-    {   
-        "name": "v4_dolma-v1_6-stack_llama",
-        "dir": "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-stack_llama",
-        "tokenizer": "llama"
-    },  
-     {   
-        "name": "v4_dolma-v1_6-cc_en_head_llama",
-        "dir": "/data-v4-dolma-v1_6-cc_en_head-llama/v4_dolma-v1_6-cc_en_head_llama",
-        "tokenizer": "llama"
-    },
-    {   
-        "name": "v4_dolma-v1_6-cc_en_middle_llama",
-        "dir": "/data-v4-dolma-v1_6-cc_en_middle-llama/v4_dolma-v1_6-cc_en_middle_llama",
-        "tokenizer": "llama"
-    },
-    {   
-        "name": "v4_dolma-v1_6-cc_en_tail_llama",
-        "dir": "/data-v4-dolma-v1_6-cc_en_tail-llama/v4_dolma-v1_6-cc_en_tail_llama",
-        "tokenizer": "llama"
-    },
-    {   
-        "name": "v4_dolma-v1_6_llama",
-        "dir": [
-            "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-wiki_llama",
-            "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-books_llama",
-            "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-pes2o_llama",
-            "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-reddit_llama",
-            "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-c4_llama",
-            "/data-v4-dolma-v1_6-nocc-llama/v4_dolma-v1_6-stack_llama",
-            "/data-v4-dolma-v1_6-cc_en_head-llama/v4_dolma-v1_6-cc_en_head_llama",
-            "/data-v4-dolma-v1_6-cc_en_middle-llama/v4_dolma-v1_6-cc_en_middle_llama",
-            "/data-v4-dolma-v1_6-cc_en_tail-llama/v4_dolma-v1_6-cc_en_tail_llama"
-        ],
-        "tokenizer": "llama"
-    },
     {
         "name": "v4_dolma-v1_7_llama",
         "dir": [
