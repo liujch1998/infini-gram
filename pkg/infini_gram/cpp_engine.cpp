@@ -75,7 +75,7 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def("search_docs_cnf", &Engine::search_docs_cnf, "cnf"_a, "maxnum"_a, "max_disp_len"_a, "max_clause_freq"_a, "max_diff_tokens"_a)
         .def("get_doc_by_rank", &Engine::get_doc_by_rank, "s"_a, "rank"_a, "max_disp_len"_a)
         .def("get_doc_by_ptr", &Engine::get_doc_by_ptr, "s"_a, "ptr"_a, "max_disp_len"_a)
-        .def("get_doc_by_ix", &Engine::get_doc_by_ix, "ix"_a, "max_disp_len"_a)
+        .def("get_doc_by_ix", &Engine::get_doc_by_ix, "doc_ix"_a, "max_disp_len"_a)
         .def("get_num_shards", &Engine::get_num_shards)
         .def("get_tok_cnt", &Engine::get_tok_cnt, "s"_a)
         .def("get_ds_size", &Engine::get_ds_size, "s"_a)
