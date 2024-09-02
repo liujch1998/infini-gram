@@ -33,5 +33,10 @@
         "name": "v4_fineweb-v1_1_0-350b_llama",
         "dir": "/data-v4-fineweb-v1_1_0-350b_llama/v4_fineweb-v1_1_0-350b_llama",
         "tokenizer": "llama"
+    },
+    {
+        "name": "v4_piletrain_gptneox",
+        "dir": "/data-v4-piletrain-gptneox/v4_piletrain_gptneox",
+        "tokenizer": "gptneox"
     }
 ]

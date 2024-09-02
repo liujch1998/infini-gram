@@ -42,6 +42,8 @@ class Processor:
             self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", add_bos_token=False, add_eos_token=False)
         elif self.tokenizer_type == 'olmo':
             self.tokenizer = AutoTokenizer.from_pretrained("allenai/OLMo-7B-hf", add_bos_token=False, add_eos_token=False)
+        elif self.tokenizer_type == 'gptneox':
+            self.tokenizer = AutoTokenizer.from_pretrained('EleutherAI/pythia-6.9b', add_bos_token=False, add_eos_token=False)
         else:
             raise NotImplementedError
 
@@ -57,6 +59,10 @@ class Processor:
             if len(input_ids) > 0 and input_ids[0] == 29871:
                 input_ids = input_ids[1:]
         elif self.tokenizer_type == 'olmo':
+            if query != '':
+                query = ' ' + query
+            input_ids = self.tokenizer.encode(query)
+        elif self.tokenizer_type == 'gptneox':
             if query != '':
                 query = ' ' + query
             input_ids = self.tokenizer.encode(query)
