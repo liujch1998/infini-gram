@@ -93,7 +93,7 @@ class Processor:
         if type(query_ids) == list and all(type(input_id) == int for input_id in query_ids): # simple query
             if len(query_ids) > args.MAX_QUERY_TOKENS:
                 return {'error': f'Please limit your input to <= {args.MAX_QUERY_TOKENS} tokens!'}
-            if any(input_id < 0 or input_id >= self.tokenizer.vocab_size for input_id in query_ids):
+            if any(input_id < 0 or (input_id >= self.tokenizer.vocab_size and input_id != 65535) for input_id in query_ids):
                 return {'error': f'Some item(s) in your query_ids are out-of-range!'}
             tokens = self.tokenizer.convert_ids_to_tokens(query_ids)
             is_cnf = False
@@ -106,7 +106,7 @@ class Processor:
                 if len(clause) > args.MAX_TERMS_PER_CLAUSE:
                     return {'error': f'Please enter at most {args.MAX_TERMS_PER_CLAUSE} terms in each disjunctive clause!'}
                 for term in clause:
-                    if any(input_id < 0 or input_id >= self.tokenizer.vocab_size for input_id in term):
+                    if any(input_id < 0 or (input_id >= self.tokenizer.vocab_size and input_id != 65535) for input_id in term):
                         return {'error': f'Some item(s) in your query_ids are out-of-range!'}
             tokens = [[self.tokenizer.convert_ids_to_tokens(term) for term in clause] for clause in query_ids]
             is_cnf = True
