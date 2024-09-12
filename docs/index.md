@@ -11,7 +11,7 @@ title: Home
 
 <p align="center">[<a href="https://hf.co/spaces/liujch1998/infini-gram">Web Interface</a>] [<a href="/api_doc">API Endpoint</a>] [<a href="/pkg_doc">Python Package</a>] [<a href="https://arxiv.org/pdf/2401.17377.pdf">Paper</a>]</p>
 
-<p>Join our <a href="https://discord.gg/VYNPQ8Gr">Discord server</a>! Get the latest updates & maintenance announcements, ask the developer anything about infini-gram, and connect with other fellow users.</p>
+<p>Join our <a href="https://discord.gg/wAhjwbjECW">Discord server</a>! Get the latest updates & maintenance announcements, ask the developer anything about infini-gram, and connect with other fellow users.</p>
 
 ---
 <br/>
