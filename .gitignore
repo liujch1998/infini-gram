@@ -1,5 +1,3 @@
 /.vscode/
 /index
-/data
-/pkg_indexing
 **/__pycache__/

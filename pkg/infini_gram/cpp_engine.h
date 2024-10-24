@@ -3,6 +3,7 @@
 #include <cstring> // for memcpy
 #include <iostream>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include <filesystem>
@@ -14,11 +15,13 @@
 #include <random>
 #include <thread>
 #include <fstream>
+#include <deque>
 
 #define U64 uint64_t
 #define U32 uint32_t
 #define U16 uint16_t
 #define U8 uint8_t
+#define PSS pair<size_t, size_t>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -100,6 +103,41 @@ struct SearchDocsResult {
     vector<U64> idxs;
     vector<DocResult> docs;
 };
+struct CreativityResult {
+    vector<size_t> rs;
+};
+struct AttributionDoc {
+    size_t s;
+    U64 ptr;
+};
+struct AttributionSpan {
+    size_t l;
+    size_t r;
+    size_t length;
+    U64 count;
+    vector<AttributionDoc> docs;
+};
+struct AttributionResult {
+    vector<AttributionSpan> spans;
+};
+struct Attribution2Doc {
+    size_t s;
+    U64 local_doc_ix;
+    U64 doc_start_ptr;
+    U64 doc_end_ptr;
+    U64 doc_ix;
+    U64 doc_len;
+    U64 disp_len;
+    U64 disp_offset;
+    string metadata;
+    vector<U16> token_ids;
+    vector<pair<U64, PSS>> token_offset_span_pairs;
+    U64 total_matched_len;
+};
+struct Attribution2Result {
+    vector<PSS> spans;
+    vector<Attribution2Doc> docs;
+};
 
 class Engine {
 
@@ -107,8 +145,9 @@ public:
 
     Engine(
         const vector<string> index_dirs, const U16 eos_token_id,
-        const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth)
-        : _eos_token_id(eos_token_id), _load_to_ram(load_to_ram), _ds_prefetch_depth(ds_prefetch_depth), _sa_prefetch_depth(sa_prefetch_depth), _od_prefetch_depth(od_prefetch_depth) {
+        const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth,
+        const set<U16> bow_ids)
+        : _eos_token_id(eos_token_id), _load_to_ram(load_to_ram), _ds_prefetch_depth(ds_prefetch_depth), _sa_prefetch_depth(sa_prefetch_depth), _od_prefetch_depth(od_prefetch_depth), _bow_ids(bow_ids) {
 
         assert_little_endian();
 
@@ -215,13 +254,6 @@ public:
         }
     }
 
-    void find_inplace(const vector<U16>* const input_ids, FindResult* const thread_output) const {
-        *thread_output = find(*input_ids);
-    }
-    void find_disj_inplace(const vector<vector<U16>>* const disj_clause, const U64 max_clause_freq, FindDisjResult* const thread_output) const {
-        *thread_output = find_disj(*disj_clause, max_clause_freq);
-    }
-
     FindResult find(const vector<U16> &input_ids) const {
 
         vector<pair<U64, U64>> hint_segment_by_shard;
@@ -312,6 +344,10 @@ public:
         *thread_output = hi;
     }
 
+    void find_inplace(const vector<U16>* const input_ids, FindResult* const thread_output) const {
+        *thread_output = find(*input_ids);
+    }
+
     FindDisjResult find_disj(const vector<vector<U16>> &disj_clause, const U64 max_clause_freq) const {
 
         vector<FindResult> find_result_by_term(disj_clause.size());
@@ -384,6 +420,10 @@ public:
         *out_cnt = cnt;
         *out_segment_by_term = segment_by_term;
         *out_subsampling_factor = subsampling_factor;
+    }
+
+    void find_disj_inplace(const vector<vector<U16>>* const disj_clause, const U64 max_clause_freq, FindDisjResult* const thread_output) const {
+        *thread_output = find_disj(*disj_clause, max_clause_freq);
     }
 
     FindCnfResult find_cnf(const vector<vector<vector<U16>>> &cnf, const U64 max_clause_freq, const U64 max_diff_tokens) const {
@@ -784,6 +824,23 @@ public:
         return get_doc_by_ptr(s, ptr, max_disp_len);
     }
 
+    void get_doc_by_rank_inplace(const size_t s, const U64 rank, const U64 max_disp_len, DocResult* const thread_output) const {
+        *thread_output = get_doc_by_rank(s, rank, max_disp_len);
+    }
+
+    vector<DocResult> get_docs_by_ranks(const vector<pair<size_t, U64>> list_of_s_and_rank, const U64 max_disp_len) const {
+
+        vector<DocResult> docs(list_of_s_and_rank.size());
+        vector<thread> threads;
+        for (size_t i = 0; i < list_of_s_and_rank.size(); i++) {
+            threads.emplace_back(&Engine::get_doc_by_rank_inplace, this, list_of_s_and_rank[i].first, list_of_s_and_rank[i].second, max_disp_len, &docs[i]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        return docs;
+    }
+
     DocResult get_doc_by_ptr(const size_t s, const U64 ptr, const U64 max_disp_len) const {
 
         assert (s < _num_shards);
@@ -831,6 +888,23 @@ public:
         return DocResult{ .doc_ix = doc_ix, .doc_len = doc_len, .disp_len = disp_len, .metadata = metadata, .token_ids = token_ids, };
     }
 
+    void get_doc_by_ptr_inplace(const size_t s, const U64 ptr, const U64 max_disp_len, DocResult* const thread_output) const {
+        *thread_output = get_doc_by_ptr(s, ptr, max_disp_len);
+    }
+
+    vector<DocResult> get_docs_by_ptrs(const vector<pair<size_t, U64>> list_of_s_and_ptr, const U64 max_disp_len) const {
+
+        vector<DocResult> docs(list_of_s_and_ptr.size());
+        vector<thread> threads;
+        for (size_t i = 0; i < list_of_s_and_ptr.size(); i++) {
+            threads.emplace_back(&Engine::get_doc_by_ptr_inplace, this, list_of_s_and_ptr[i].first, list_of_s_and_ptr[i].second, max_disp_len, &docs[i]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        return docs;
+    }
+
     DocResult get_doc_by_ix(const U64 doc_ix, const U64 max_disp_len) const {
 
         assert (doc_ix < get_total_doc_cnt());
@@ -864,6 +938,23 @@ public:
         return DocResult{ .doc_ix = doc_ix, .doc_len = doc_len, .disp_len = disp_len, .metadata = metadata, .token_ids = token_ids, };
     }
 
+    void get_doc_by_ix_inplace(const U64 doc_ix, const U64 max_disp_len, DocResult* const thread_output) const {
+        *thread_output = get_doc_by_ix(doc_ix, max_disp_len);
+    }
+
+    vector<DocResult> get_docs_by_ixs(const vector<U64> list_of_doc_ix, const U64 max_disp_len) const {
+
+        vector<DocResult> docs(list_of_doc_ix.size());
+        vector<thread> threads;
+        for (size_t i = 0; i < list_of_doc_ix.size(); i++) {
+            threads.emplace_back(&Engine::get_doc_by_ix_inplace, this, list_of_doc_ix[i], max_disp_len, &docs[i]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        return docs;
+    }
+
     size_t get_num_shards() const {
         return _num_shards;
     }
@@ -886,18 +977,383 @@ public:
         return total_doc_cnt;
     }
 
+    // get the length (in bytes) of the longest common prefix of two byte arrays
+    size_t get_lcp_len(const U8* const a, const size_t len_a, const U8* const b, const size_t len_b) const {
+        size_t i = 0;
+        while (i < len_a && i < len_b && a[i] == b[i]) {
+            i++;
+        }
+        return i;
+    }
+
+    void compute_longest_prefix_len_thread(const vector<U16>* const input_ids, const size_t s, size_t* const out_longest_prefix_len) const {
+
+        const auto &shard = _shards[s];
+
+        const U8 *input_buf = reinterpret_cast<const U8*>(input_ids->data());
+        U64 num_bytes = input_ids->size() * sizeof(U16);
+        U64 start, end;
+        pair<U64, U64> hint_segment = {0, shard.tok_cnt};
+        vector<thread> threads;
+        threads.emplace_back(&Engine::_find_thread, this,
+            s, input_ids, input_buf, num_bytes, hint_segment, true, &start);
+        threads.emplace_back(&Engine::_find_thread, this,
+            s, input_ids, input_buf, num_bytes, hint_segment, false, &end);
+        for (auto &thread : threads) {
+            thread.join();
+        }
+
+        if (start != end) {
+            *out_longest_prefix_len = input_ids->size();
+            return;
+        }
+
+        *out_longest_prefix_len = 0;
+        // Inspect start-1 and start, but skip start-1 if start == 0, and skip start if start == shard.tok_cnt
+        for (U64 rank = max((U64)0, start - 1); rank < min(shard.tok_cnt, start + 1); rank++) {
+            U64 ptr = _convert_rank_to_ptr(shard, rank);
+            size_t prefix_len = get_lcp_len(
+                shard.ds + ptr, shard.ds_size - ptr,
+                input_buf, input_ids->size() * sizeof(U16)) / sizeof(U16);
+            *out_longest_prefix_len = max(*out_longest_prefix_len, prefix_len);
+        }
+    }
+
+    size_t compute_longest_prefix_len(const vector<U16> &input_ids, const vector<U16> &delim_ids, const bool enforce_bow = false) const {
+
+        vector<thread> threads;
+        vector<size_t> longest_prefix_len_by_shard(_num_shards);
+        for (size_t s = 0; s < _num_shards; s++) {
+            threads.emplace_back(&Engine::compute_longest_prefix_len_thread, this,
+                &input_ids, s, &longest_prefix_len_by_shard[s]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        size_t longest_prefix_len = 0;
+        for (size_t s = 0; s < _num_shards; s++) {
+            longest_prefix_len = max(longest_prefix_len, longest_prefix_len_by_shard[s]);
+        }
+
+        // cut off at the first occurrence of a delimiter
+        if (!delim_ids.empty()) {
+            for (size_t pos = 0; pos + 1 < longest_prefix_len; pos++) {
+                if (std::find(delim_ids.begin(), delim_ids.end(), input_ids[pos]) != delim_ids.end()) {
+                    longest_prefix_len = pos + 1;
+                    break;
+                }
+            }
+        }
+
+        // back off until the next token is a beginning-of-word
+        if (enforce_bow) {
+            while (longest_prefix_len > 0) {
+                if (longest_prefix_len == input_ids.size() || _bow_ids.find(input_ids[longest_prefix_len]) != _bow_ids.end()) {
+                    break;
+                }
+                longest_prefix_len--;
+            }
+        }
+
+        return longest_prefix_len;
+    }
+
+    void creativity_thread(const vector<U16>* const input_ids, const size_t l, size_t* const out_r) const {
+
+        vector<U16> delim_ids;
+        vector<U16> suffix_ids(input_ids->begin() + l, input_ids->end());
+        size_t len = compute_longest_prefix_len(suffix_ids, delim_ids, false);
+        *out_r = l + len;
+    }
+
+    CreativityResult creativity(const vector<U16> &input_ids) const {
+
+        vector<size_t> rs(input_ids.size());
+        vector<thread> threads;
+        for (size_t l = 0; l < input_ids.size(); l++) {
+            threads.emplace_back(&Engine::creativity_thread, this,
+                &input_ids, l, &rs[l]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+
+        return CreativityResult{ .rs = rs, };
+    }
+
+    void compute_interesting_spans_thread(const vector<U16>* const input_ids, const size_t l, const vector<U16>* const delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow, vector<pair<PSS, FindResult>>* const out_span_find_pairs) const {
+
+        vector<U16> suffix_ids(input_ids->begin() + l, input_ids->end());
+        size_t len = compute_longest_prefix_len(suffix_ids, *delim_ids, enforce_bow);
+        if (len < min_len) return;
+        vector<U16> span_ids(input_ids->begin() + l, input_ids->begin() + l + len);
+        auto find_result = find(span_ids);
+        if (find_result.cnt > max_cnt) return;
+        out_span_find_pairs->push_back({{l, l + len}, find_result});
+    }
+
+    vector<pair<PSS, FindResult>> compute_interesting_spans(const vector<U16> &input_ids, const vector<U16> &delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow) const {
+
+        vector<vector<pair<PSS, FindResult>>> span_find_pairs_by_l(input_ids.size());
+        vector<thread> threads;
+        for (size_t l = 0; l < input_ids.size(); l++) {
+            // skip if this word is not a beginning-of-word
+            if (enforce_bow && _bow_ids.find(input_ids[l]) == _bow_ids.end()) continue;
+
+            threads.emplace_back(&Engine::compute_interesting_spans_thread, this,
+                &input_ids, l, &delim_ids, min_len, max_cnt, enforce_bow, &span_find_pairs_by_l[l]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+
+        vector<pair<PSS, FindResult>> flattened_span_find_pairs;
+        for (const auto &span_find_pairs : span_find_pairs_by_l) {
+            flattened_span_find_pairs.insert(flattened_span_find_pairs.end(), span_find_pairs.begin(), span_find_pairs.end());
+        }
+
+        vector<pair<PSS, FindResult>> filtered_span_find_pairs;
+        size_t last_r = 0;
+        for (const auto &span_find_pair : flattened_span_find_pairs) {
+            auto &[span, find_result] = span_find_pair;
+            size_t l = span.first, r = span.second;
+            if (r > last_r) {
+                last_r = r;
+                filtered_span_find_pairs.push_back(span_find_pair);
+            }
+        }
+
+        return filtered_span_find_pairs;
+    }
+
+    void compute_interesting_spans_2_thread(const vector<U16>* const input_ids, const size_t l, const vector<U16>* const delim_ids, const size_t min_len, const size_t max_cnt, vector<pair<PSS, FindResult>>* const out_span_find_pairs) const {
+
+        vector<U16> suffix_ids(input_ids->begin() + l, input_ids->end());
+        size_t len = compute_longest_prefix_len(suffix_ids, *delim_ids);
+        for (size_t r = l + len; r >= l + min_len; r--) {
+            vector<U16> span_ids(input_ids->begin() + l, input_ids->begin() + r);
+            auto find_result = find(span_ids);
+            if (find_result.cnt > max_cnt) break;
+            out_span_find_pairs->push_back({{l, r}, find_result});
+        }
+    }
+
+    vector<pair<PSS, FindResult>> compute_interesting_spans_2(const vector<U16> &input_ids, const vector<U16> &delim_ids, const size_t min_len, const size_t max_cnt) const {
+
+        vector<vector<pair<PSS, FindResult>>> span_find_pairs_by_l(input_ids.size());
+        vector<thread> threads;
+        for (size_t l = 0; l < input_ids.size(); l++) {
+            threads.emplace_back(&Engine::compute_interesting_spans_2_thread, this,
+                &input_ids, l, &delim_ids, min_len, max_cnt, &span_find_pairs_by_l[l]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+
+        vector<pair<PSS, FindResult>> flattened_span_find_pairs;
+        for (const auto &span_find_pairs : span_find_pairs_by_l) {
+            flattened_span_find_pairs.insert(flattened_span_find_pairs.end(), span_find_pairs.begin(), span_find_pairs.end());
+        }
+
+        return flattened_span_find_pairs;
+    }
+
+    void get_attribution_span_thread(const pair<PSS, FindResult>* const span_find_pair, AttributionSpan* const out_attribution_span) const {
+
+        const auto &[span, find_result] = *span_find_pair;
+        vector<vector<U64>> ptrs_by_shard(_num_shards);
+        for (size_t s = 0; s < _num_shards; s++) {
+            const auto &shard = _shards[s];
+            auto &[start, end] = find_result.segment_by_shard[s];
+            ptrs_by_shard[s] = _convert_ranks_to_ptrs(shard, start, end);
+        }
+        vector<AttributionDoc> docs;
+        for (size_t s = 0; s < _num_shards; s++) {
+            for (size_t i = 0; i < ptrs_by_shard[s].size(); i++) {
+                AttributionDoc doc{ .s = s, .ptr = ptrs_by_shard[s][i], };
+                docs.push_back(doc);
+            }
+        }
+        out_attribution_span->l = span.first;
+        out_attribution_span->r = span.second;
+        out_attribution_span->length = span.second - span.first;
+        out_attribution_span->count = find_result.cnt;
+        out_attribution_span->docs = docs;
+    }
+
+    AttributionResult attribute(const vector<U16> input_ids, const vector<U16> delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow) const {
+
+        vector<pair<PSS, FindResult>> span_find_pairs = compute_interesting_spans(input_ids, delim_ids, min_len, max_cnt, enforce_bow);
+
+        vector<AttributionSpan> attribution_spans(span_find_pairs.size());
+        vector<thread> threads;
+        for (size_t i = 0; i < span_find_pairs.size(); i++) {
+            threads.emplace_back(&Engine::get_attribution_span_thread, this, &span_find_pairs[i], &attribution_spans[i]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+
+        return AttributionResult{ .spans = attribution_spans, };
+    }
+
+    void attribute_2_thread(vector<pair<U64, PSS>>* const ptr_span_pairs, const size_t s, vector<Attribution2Doc>* const out_docs) const {
+
+        // sort ptr_span_pairs in increasing order of ptr, and decreasing order of span length
+        sort(ptr_span_pairs->begin(), ptr_span_pairs->end(), [](const pair<U64, PSS> &a, const pair<U64, PSS> &b) {
+            if (a.first < b.first) return true;
+            if (a.first > b.first) return false;
+            return a.second.second - a.second.first > b.second.second - b.second.first;
+        });
+
+        deque<pair<U64, PSS>> _ptr_span_pairs(ptr_span_pairs->begin(), ptr_span_pairs->end());
+        while (!_ptr_span_pairs.empty()) {
+            auto [ptr, span] = _ptr_span_pairs.front();
+
+            // locate the document containing this ptr
+            const auto &shard = _shards[s];
+            U64 lo = 0, hi = shard.doc_cnt;
+            while (hi - lo > 1) {
+                _prefetch_doc(shard, lo, hi);
+                U64 mi = (lo + hi) >> 1;
+                U64 p = _convert_doc_ix_to_ptr(shard, mi);
+                if (p <= ptr) {
+                    lo = mi;
+                } else {
+                    hi = mi;
+                }
+            }
+            U64 local_doc_ix = lo;
+            U64 doc_ix = 0; for (size_t _ = 0; _ < s; _++) doc_ix += _shards[_].doc_cnt; doc_ix += local_doc_ix;
+            U64 doc_start_ptr = _convert_doc_ix_to_ptr(shard, local_doc_ix) + sizeof(U16); // +2 because we want to skip the document separator
+            U64 doc_end_ptr = _convert_doc_ix_to_ptr(shard, local_doc_ix + 1);
+            U64 doc_len = (doc_end_ptr - doc_start_ptr) / sizeof(U16);
+
+            // pop all ptrs that fall into this doc
+            vector<pair<U64, PSS>> token_offset_span_pairs;
+            while (!_ptr_span_pairs.empty() && _ptr_span_pairs.front().first < doc_end_ptr) {
+                auto [ptr, span] = _ptr_span_pairs.front();
+                _ptr_span_pairs.pop_front();
+                U64 token_offset = (ptr - doc_start_ptr) / sizeof(U16);
+                token_offset_span_pairs.push_back({token_offset, span});
+            }
+            // now token_offset_span_pairs are sorted by token_offset (increasing), and then span length (decreasing)
+
+            // compute statistics for ranking docs
+            vector<PSS> matched_spans;
+            for (auto [_, span] : token_offset_span_pairs) {
+                matched_spans.push_back(span);
+            }
+            sort(matched_spans.begin(), matched_spans.end());
+            U64 total_matched_len = 0;
+            size_t last_r = 0;
+            for (auto [l, r] : matched_spans) {
+                if (r <= last_r) continue;
+                if (l >= last_r) {
+                    total_matched_len += r - l;
+                    last_r = r;
+                } else {
+                    total_matched_len += r - last_r;
+                    last_r = r;
+                }
+            }
+
+            Attribution2Doc doc{ .s = s, .local_doc_ix = local_doc_ix, .doc_start_ptr = doc_start_ptr, .doc_end_ptr = doc_end_ptr, .doc_ix = doc_ix, .doc_len = doc_len, .token_offset_span_pairs = token_offset_span_pairs, .total_matched_len = total_matched_len, };
+            out_docs->push_back(doc);
+        }
+    }
+
+    Attribution2Result attribute_2(const vector<U16> input_ids, const vector<U16> delim_ids, const size_t min_len, const size_t max_cnt, const size_t max_docs, const size_t max_disp_len) const {
+
+        vector<pair<PSS, FindResult>> span_find_pairs = compute_interesting_spans_2(input_ids, delim_ids, min_len, max_cnt);
+
+        vector<PSS> spans;
+        for (const auto &[span, find_result] : span_find_pairs) {
+            spans.push_back(span);
+        }
+
+        vector<vector<pair<U64, PSS>>> ptr_span_pairs_by_shard(_num_shards);
+        for (auto &[span, find_result] : span_find_pairs) {
+            auto &[l, r] = span;
+            for (size_t s = 0; s < _num_shards; s++) {
+                auto &[start, end] = find_result.segment_by_shard[s];
+                vector<U64> ptrs = _convert_ranks_to_ptrs(_shards[s], start, end);
+                sort(ptrs.begin(), ptrs.end());
+                for (const auto ptr : ptrs) {
+                    ptr_span_pairs_by_shard[s].push_back({ptr, span});
+                }
+            }
+        }
+
+        // gather docs from each shard
+        vector<vector<Attribution2Doc>> docs_by_s(_num_shards);
+        vector<thread> threads;
+        for (size_t s = 0; s < _num_shards; s++) {
+            threads.emplace_back(&Engine::attribute_2_thread, this,
+                &ptr_span_pairs_by_shard[s], s, &docs_by_s[s]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        vector<Attribution2Doc> docs;
+        for (size_t s = 0; s < _num_shards; s++) {
+            docs.insert(docs.end(), docs_by_s[s].begin(), docs_by_s[s].end());
+        }
+
+        // rank docs and keep top-k
+        sort(docs.begin(), docs.end(), [](const Attribution2Doc &a, const Attribution2Doc &b) {
+            return a.total_matched_len > b.total_matched_len;
+        });
+        if (docs.size() > max_docs) {
+            docs.resize(max_docs);
+        }
+
+        // fill out the rest of the doc info
+        for (auto &doc : docs) {
+            size_t s = doc.s;
+            U64 local_doc_ix = doc.local_doc_ix;
+            U64 doc_start_ptr = doc.doc_start_ptr, doc_end_ptr = doc.doc_end_ptr;
+
+            const auto &shard = _shards[s];
+
+            U64 first_offset = doc.token_offset_span_pairs[0].first;
+            U64 disp_start_ptr = doc_start_ptr + (first_offset >= max_disp_len / 4 ? first_offset - max_disp_len / 4 : 0) * sizeof(U16);
+            U64 disp_end_ptr = min(doc_end_ptr, disp_start_ptr + max_disp_len * sizeof(U16));
+            U64 disp_len = (disp_end_ptr - disp_start_ptr) / sizeof(U16);
+            U64 disp_offset = (disp_start_ptr - doc_start_ptr) / sizeof(U16);
+
+            string metadata = "";
+            if (shard.mt) {
+                U64 meta_start_ptr = _convert_doc_ix_to_meta_ptr(shard, local_doc_ix);
+                U64 meta_end_ptr = _convert_doc_ix_to_meta_ptr(shard, local_doc_ix + 1);
+                vector<U8> meta_chars(shard.mt + meta_start_ptr, shard.mt + meta_end_ptr);
+                metadata = string(meta_chars.begin(), meta_chars.end());
+            }
+
+            vector<U16> token_ids(reinterpret_cast<U16*>(shard.ds + disp_start_ptr), reinterpret_cast<U16*>(shard.ds + disp_end_ptr));
+
+            doc.disp_len = disp_len;
+            doc.disp_offset = disp_offset;
+            doc.metadata = metadata;
+            doc.token_ids = token_ids;
+        }
+
+        return Attribution2Result{ .spans = spans, .docs = docs, };
+    }
+
 private:
 
     void _prefetch_find(const DatastoreShard &shard, const U64 num_bytes, const U64 lo, const U64 hi, const size_t depth = 0) const {
         U64 mi = (lo + hi) >> 1;
         if (mi >= shard.tok_cnt) return; // This might happen when lo = -1 and hi = 0
-        if (depth == _ds_prefetch_depth) { // fetch ds
+        if (_ds_prefetch_depth != 0 && depth == _ds_prefetch_depth) { // fetch ds
             U64 ptr = _convert_rank_to_ptr(shard, mi);
             madvise(shard.ds + ptr - ptr % PAGESIZE, num_bytes + ptr % PAGESIZE, MADV_WILLNEED);
-        } else if (depth == _sa_prefetch_depth) { // fetch sa
-            madvise(shard.sa + mi * shard.ptr_size - mi * shard.ptr_size % PAGESIZE, shard.ptr_size + mi * shard.ptr_size % PAGESIZE, MADV_WILLNEED);
-            return;
         }
+        if (_ds_prefetch_depth != _sa_prefetch_depth && depth == _sa_prefetch_depth) { // fetch sa
+            madvise(shard.sa + mi * shard.ptr_size - mi * shard.ptr_size % PAGESIZE, shard.ptr_size + mi * shard.ptr_size % PAGESIZE, MADV_WILLNEED);
+        }
+        if (depth == _sa_prefetch_depth) return;
         _prefetch_find(shard, num_bytes, lo, mi, depth + 1);
         _prefetch_find(shard, num_bytes, mi, hi, depth + 1);
     }
@@ -919,6 +1375,7 @@ private:
     }
 
     void _prefetch_doc(const DatastoreShard &shard, const U64 lo, const U64 hi, const size_t depth = 0) const {
+        if (_od_prefetch_depth == 0) return;
         U64 mi = (lo + hi) >> 1;
         if (mi >= shard.doc_cnt) return; // This might happen when lo = -1 and hi = 0
         if (depth == _od_prefetch_depth) { // fetch od
@@ -1002,6 +1459,7 @@ private:
     size_t _ds_prefetch_depth;
     size_t _sa_prefetch_depth;
     size_t _od_prefetch_depth;
+    set<U16> _bow_ids;
     size_t _num_shards;
     vector<DatastoreShard> _shards;
 };
