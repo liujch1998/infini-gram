@@ -7,7 +7,7 @@ import sys
 import time
 import traceback
 from transformers import AutoTokenizer
-sys.path.append('..')
+sys.path.append('../pkg')
 from infini_gram.engine import InfiniGramEngine
 
 parser = argparse.ArgumentParser()
@@ -39,7 +39,7 @@ class Processor:
         else:
             raise NotImplementedError
 
-        self.engine = InfiniGramEngine(index_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id, bow_ids_path=config['bow_ids_path'])
+        self.engine = InfiniGramEngine(index_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id)
 
     def tokenize(self, query):
         if self.tokenizer_type == 'gpt2':
