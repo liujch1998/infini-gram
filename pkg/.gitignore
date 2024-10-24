@@ -2,7 +2,6 @@ build
 dist
 *.egg-info
 wheelhouse
-test/cpp_engine_test
 infini_gram/rust_indexing
 Cargo.lock
 target
