@@ -43,7 +43,7 @@ def format_doc(doc, span_ids):
 def main():
     engine = InfiniGramEngine(
         index_dir=['/data-v4-dolma-v1_7-s0-llama/v4_dolma-v1_7-s0_llama', '/data-v4-dolma-v1_7-s1-llama/v4_dolma-v1_7-s1_llama'],
-        bow_ids_path='infini_gram/llama-2_bow_ids.txt',
+        bow_ids_path='./llama-2_bow_ids.txt',
         eos_token_id=2, ds_prefetch_depth=0, sa_prefetch_depth=0,
     )
 

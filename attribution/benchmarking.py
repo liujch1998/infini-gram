@@ -37,7 +37,7 @@ engine = InfiniGramEngine(
     #     './index/v4_pileval_llama_replica11',
     #     './index/v4_pileval_llama_replica12',
     # ],
-    eos_token_id=2, bow_ids_path='./infini_gram/llama-2_bow_ids.txt',
+    eos_token_id=2, bow_ids_path='./llama-2_bow_ids.txt',
     ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0,
 )
 
