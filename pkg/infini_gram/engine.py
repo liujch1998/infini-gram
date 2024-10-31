@@ -7,8 +7,8 @@ from .cpp_engine import Engine
 class InfiniGramEngine:
 
     def __init__(self, index_dir: Iterable[str] | str, eos_token_id: int,
-                 bow_ids_path: str = None,
                  load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
+                 bow_ids_path: str = None, precompute_unigram_logprobs: bool = False,
                  max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=1000,
                  ) -> None:
 
@@ -44,7 +44,7 @@ class InfiniGramEngine:
                 print(f"Error reading bow_ids_path: {e}")
                 raise e
 
-        self.engine = Engine(index_dir, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids)
+        self.engine = Engine(index_dir, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)
 
     def check_query_ids(self, query_ids: QueryIdsType, allow_empty: bool) -> bool:
         if not (type(query_ids) == list and (allow_empty or len(query_ids) > 0)):
@@ -292,6 +292,7 @@ class InfiniGramEngine:
                     r=span.r,
                     length=span.length,
                     count=span.count,
+                    unigram_logprob_sum=span.unigram_logprob_sum,
                     docs=[
                         AttributionDoc(s=doc.s, ptr=doc.ptr)
                         for doc in span.docs

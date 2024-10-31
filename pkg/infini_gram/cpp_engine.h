@@ -115,6 +115,7 @@ struct AttributionSpan {
     size_t r;
     size_t length;
     U64 count;
+    float unigram_logprob_sum;
     vector<AttributionDoc> docs;
 };
 struct AttributionResult {
@@ -146,8 +147,11 @@ public:
     Engine(
         const vector<string> index_dirs, const U16 eos_token_id,
         const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth,
-        const set<U16> bow_ids)
-        : _eos_token_id(eos_token_id), _load_to_ram(load_to_ram), _ds_prefetch_depth(ds_prefetch_depth), _sa_prefetch_depth(sa_prefetch_depth), _od_prefetch_depth(od_prefetch_depth), _bow_ids(bow_ids) {
+        const set<U16> bow_ids, const bool precompute_unigram_logprobs)
+        : _eos_token_id(eos_token_id),
+          _load_to_ram(load_to_ram), _ds_prefetch_depth(ds_prefetch_depth), _sa_prefetch_depth(sa_prefetch_depth), _od_prefetch_depth(od_prefetch_depth),
+          _bow_ids(bow_ids)
+    {
 
         assert_little_endian();
 
@@ -207,6 +211,31 @@ public:
 
         _num_shards = _shards.size();
         assert (_num_shards > 0);
+
+        if (precompute_unigram_logprobs) {
+            _unigram_logprobs.resize(65536, -10000.0);
+            U64 total_tok_cnt = get_total_tok_cnt();
+            for (U16 i = 0; i < 256; i++) {
+                vector<vector<U16>> input_ids(256);
+                for (U16 j = 0; j < 256; j++) {
+                    input_ids[j].push_back(i * 256 + j);
+                }
+                vector<CountResult> count_results(256);
+                vector<thread> threads;
+                for (U16 j = 0; j < 256; j++) {
+                    threads.emplace_back(&Engine::count_inplace, this, &input_ids[j], &count_results[j]);
+                }
+                for (auto &thread : threads) {
+                    thread.join();
+                }
+                for (U16 j = 0; j < 256; j++) {
+                    if (count_results[j].count > 0) {
+                        _unigram_logprobs[i * 256 + j] = log(count_results[j].count) - log(total_tok_cnt);
+                    }
+                    // cout << i * 256 + j << ' ' << _unigram_logprobs[i * 256 + j] << endl;
+                }
+            }
+        }
     }
 
     ~Engine() {
@@ -543,6 +572,10 @@ public:
     CountResult count(const vector<U16> &input_ids) const {
         auto find_result = find(input_ids);
         return CountResult{ .count = find_result.cnt, .approx = false, };
+    }
+
+    void count_inplace(const vector<U16>* const input_ids, CountResult* const thread_output) const {
+        *thread_output = count(*input_ids);
     }
 
     CountResult count_cnf(const vector<vector<vector<U16>>> &cnf, const U64 max_clause_freq, const U64 max_diff_tokens) const {
@@ -969,6 +1002,14 @@ public:
         return _shards[s].ds_size;
     }
 
+    U64 get_total_tok_cnt() const {
+        U64 total_tok_cnt = 0;
+        for (const auto &shard : _shards) {
+            total_tok_cnt += shard.tok_cnt;
+        }
+        return total_tok_cnt;
+    }
+
     U64 get_total_doc_cnt() const {
         U64 total_doc_cnt = 0;
         for (const auto &shard : _shards) {
@@ -1192,6 +1233,15 @@ public:
         }
         for (auto &thread : threads) {
             thread.join();
+        }
+
+        // populate the unigram_logprob_sum for each attribution_span
+        for (auto &attribution_span : attribution_spans) {
+            float unigram_logprob_sum = 0.0f;
+            for (auto i = attribution_span.l; i < attribution_span.r; i++) {
+                unigram_logprob_sum += _unigram_logprobs[input_ids[i]];
+            }
+            attribution_span.unigram_logprob_sum = unigram_logprob_sum;
         }
 
         return AttributionResult{ .spans = attribution_spans, };
@@ -1462,4 +1512,5 @@ private:
     set<U16> _bow_ids;
     size_t _num_shards;
     vector<DatastoreShard> _shards;
+    vector<double> _unigram_logprobs;
 };

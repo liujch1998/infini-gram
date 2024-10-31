@@ -70,6 +70,8 @@ class AttributionSpan(TypedDict):
     l: int
     r: int
     length: int
+    count: int
+    unigram_logprob_sum: float
     docs: List[AttributionDoc]
 
 class AttributionResponse(TypedDict):

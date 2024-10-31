@@ -1,10 +1,14 @@
-from infini_gram.engine import InfiniGramEngine
-import transformers
+# pip install transformers tqdm termcolor pybind11
+# huggingface-cli login
+
 from termcolor import colored
+import csv
 import sys
 import time
-import json
-import random
+import numpy as np
+import transformers
+sys.path.append('../pkg')
+from infini_gram.engine import InfiniGramEngine
 
 tokenizer = transformers.AutoTokenizer.from_pretrained('meta-llama/Llama-2-7b-hf', add_bos_token=False, add_eos_token=False)
 delim_ids = [13, 29889] # \n is 13; . is 29889
@@ -42,44 +46,37 @@ def format_doc(doc, span_ids):
 
 def main():
     engine = InfiniGramEngine(
-        index_dir=['/data-v4-dolma-v1_7-s0-llama/v4_dolma-v1_7-s0_llama', '/data-v4-dolma-v1_7-s1-llama/v4_dolma-v1_7-s1_llama'],
-        bow_ids_path='./llama-2_bow_ids.txt',
-        eos_token_id=2, ds_prefetch_depth=0, sa_prefetch_depth=0,
+        index_dir=[
+            '/weka/oe-training-default/jiachengl/index/v4_olmoe-mix-0924-dclm_llama',
+            '/weka/oe-training-default/jiachengl/index/v4_olmoe-mix-0924-nodclm_llama',
+            '/weka/oe-training-default/jiachengl/index/v4_tulu-v3.1-mix-preview-4096-OLMoE_llama',
+            '/weka/oe-training-default/jiachengl/index/v4_ultrafeedback-binarized-cleaned_llama',
+        ],
+        eos_token_id=2, bow_ids_path='./llama-2_bow_ids.txt', precompute_unigram_logprobs=True,
+        ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0,
     )
 
-    filepath = sys.argv[1]
-    print('='*80)
-    print(f'Input file: {filepath}')
-    print('='*80)
-
-    text = open(filepath, 'r').read()
+    name = sys.argv[1]
+    text = open(f'input/{name}.txt', 'r').read()
     print('Model output:')
     print(text)
     print('='*80)
 
-    # with open('att_input/olmo-7b_old_man_sea.json') as f:
-    #     items = json.load(f)
-    #     item = random.choice(items)
-    #     text = item['text']
-
     input_ids = tokenizer.encode(text)
 
     start_time = time.time()
-    attribution_result = engine.attribute(input_ids=input_ids, delim_ids=delim_ids, min_len=10, max_cnt=10000, enforce_bow=True)
+    attribution_result = engine.attribute(input_ids=input_ids, delim_ids=delim_ids, min_len=1, max_cnt=1000000, enforce_bow=True)
+    spans = attribution_result["spans"]
     latency = time.time() - start_time
     print(f'Attribution latency: {latency:.3f}s')
     print('='*80)
 
-    start_time = time.time()
-    spans = attribution_result["spans"]
-    for span in spans:
-        docs = []
-        for doc in span['docs'][:1]:
-            docs.append(engine.get_doc_by_ptr(s=doc['s'], ptr=doc['ptr'], max_disp_len=500))
-        span['docs'] = docs
-    latency = time.time() - start_time
-    print(f'Doc fetch latency: {latency:.3f}s')
-    print('='*80)
+    # start_time = time.time()
+    # for span in spans:
+    #     span['docs'] = engine.get_docs_by_ptrs(list_of_s_and_ptr=[(doc['s'], doc['ptr']) for doc in span['docs']], max_disp_len=200)
+    # latency = time.time() - start_time
+    # print(f'Doc fetch latency: {latency:.3f}s')
+    # print('='*80)
 
     print(f'Number of interesting spans: {len(spans)}')
     print('Interesting spans:')
@@ -88,14 +85,28 @@ def main():
         print(f'\tl = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
     print('='*80)
 
-    for span in spans:
-        disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
-        print(f'l = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
-        for d, doc in enumerate(span['docs']):
-            print()
-            print(f'Doc #{d}:')
-            print(format_doc(doc, span_ids=input_ids[span['l']:span['r']]))
-        print('-'*80)
+    # for span in spans:
+    #     disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
+    #     print(f'l = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
+    #     for d, doc in enumerate(span['docs']):
+    #         print()
+    #         print(f'Doc #{d}:')
+    #         print(format_doc(doc, span_ids=input_ids[span['l']:span['r']]))
+    #     print('-'*80)
+
+    with open(f'span/{name}.csv', 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=['l', 'r', 'span', 'length', 'count', 'unigram_logprob_sum'])
+        writer.writeheader()
+        for span in spans:
+            disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
+            writer.writerow({
+                'l': span['l'],
+                'r': span['r'],
+                'span': disp_span,
+                'length': span['length'],
+                'count': span['count'],
+                'unigram_logprob_sum': span['unigram_logprob_sum'],
+            })
 
 if __name__ == '__main__':
     main()

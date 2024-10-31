@@ -73,6 +73,7 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def_readwrite("r", &AttributionSpan::r)
         .def_readwrite("length", &AttributionSpan::length)
         .def_readwrite("count", &AttributionSpan::count)
+        .def_readwrite("unigram_logprob_sum", &AttributionSpan::unigram_logprob_sum)
         .def_readwrite("docs", &AttributionSpan::docs);
 
     py::class_<AttributionResult>(m, "AttributionResult")
@@ -97,7 +98,7 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def_readwrite("docs", &Attribution2Result::docs);
 
     py::class_<Engine>(m, "Engine")
-        .def(py::init<const vector<string>, const U16, const bool, const size_t, const size_t, const size_t, const set<U16>>())
+        .def(py::init<const vector<string>, const U16, const bool, const size_t, const size_t, const size_t, const set<U16>, const bool>())
         .def("find", &Engine::find, "input_ids"_a)
         .def("find_cnf", &Engine::find_cnf, "cnf"_a, "max_clause_freq"_a, "max_diff_tokens"_a)
         .def("count", &Engine::count, "input_ids"_a)
