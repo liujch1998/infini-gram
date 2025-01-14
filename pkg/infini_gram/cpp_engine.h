@@ -802,7 +802,7 @@ public:
             U64 rank = uniform_int_distribution<U64>(start, end - 1)(gen); // left inclusive, right inclusive
             U64 ptr = _convert_rank_to_ptr(_shards[s], rank);
             U64 idx = accumulate(cnt_by_shard.begin(), cnt_by_shard.begin() + s, (U64)0) + (rank - start);
-            DocResult doc = get_doc_by_ptr(s, ptr, max_disp_len);
+            DocResult doc = get_doc_by_ptr(s, ptr, max_disp_len, false);
             idxs.push_back(idx);
             docs.push_back(doc);
         }
@@ -839,7 +839,7 @@ public:
             auto &ptr = ptrs[i];
             double percentile = (double)(accumulate(ptr_cnt_by_shard.begin(), ptr_cnt_by_shard.begin() + s, (U64)0) + i) / ptr_cnt;
             U64 idx = (U64)(percentile * find_cnf_result.cnt);
-            DocResult doc = get_doc_by_ptr(s, ptr, max_disp_len);
+            DocResult doc = get_doc_by_ptr(s, ptr, max_disp_len, false);
             idxs.push_back(idx);
             docs.push_back(doc);
         }
@@ -847,26 +847,26 @@ public:
         return SearchDocsResult{ .cnt = find_cnf_result.cnt, .approx = find_cnf_result.approx, .idxs = idxs, .docs = docs, };
     }
 
-    DocResult get_doc_by_rank(const size_t s, const U64 rank, const U64 max_disp_len) const {
+    DocResult get_doc_by_rank(const size_t s, const U64 rank, const U64 max_disp_len, const bool len_as_ctx) const {
 
         assert (s < _num_shards);
         const auto &shard = _shards[s];
         assert (rank < shard.tok_cnt);
 
         U64 ptr = _convert_rank_to_ptr(shard, rank);
-        return get_doc_by_ptr(s, ptr, max_disp_len);
+        return get_doc_by_ptr(s, ptr, max_disp_len, len_as_ctx);
     }
 
-    void get_doc_by_rank_inplace(const size_t s, const U64 rank, const U64 max_disp_len, DocResult* const thread_output) const {
-        *thread_output = get_doc_by_rank(s, rank, max_disp_len);
+    void get_doc_by_rank_inplace(const size_t s, const U64 rank, const U64 max_disp_len, const bool len_as_ctx, DocResult* const thread_output) const {
+        *thread_output = get_doc_by_rank(s, rank, max_disp_len, len_as_ctx);
     }
 
-    vector<DocResult> get_docs_by_ranks(const vector<pair<size_t, U64>> list_of_s_and_rank, const U64 max_disp_len) const {
+    vector<DocResult> get_docs_by_ranks(const vector<pair<size_t, U64>> list_of_s_and_rank, const U64 max_disp_len, const bool len_as_ctx) const {
 
         vector<DocResult> docs(list_of_s_and_rank.size());
         vector<thread> threads;
         for (size_t i = 0; i < list_of_s_and_rank.size(); i++) {
-            threads.emplace_back(&Engine::get_doc_by_rank_inplace, this, list_of_s_and_rank[i].first, list_of_s_and_rank[i].second, max_disp_len, &docs[i]);
+            threads.emplace_back(&Engine::get_doc_by_rank_inplace, this, list_of_s_and_rank[i].first, list_of_s_and_rank[i].second, max_disp_len, len_as_ctx, &docs[i]);
         }
         for (auto &thread : threads) {
             thread.join();
@@ -874,15 +874,21 @@ public:
         return docs;
     }
 
-    DocResult get_doc_by_ptr(const size_t s, const U64 ptr, const U64 max_disp_len) const {
+    DocResult get_doc_by_ptr(const size_t s, const U64 ptr, const U64 max_disp_len, const bool len_as_ctx) const {
 
         assert (s < _num_shards);
         const auto &shard = _shards[s];
         assert (ptr < shard.ds_size);
         assert (ptr % sizeof(U16) == 0);
 
-        U64 max_prepend_tokens = max_disp_len / 2;
-        U64 max_append_tokens = (max_disp_len + 1) / 2;
+        U64 max_prepend_tokens, max_append_tokens;
+        if (len_as_ctx) {
+            max_prepend_tokens = max_disp_len;
+            max_append_tokens = max_disp_len;
+        } else {
+            max_prepend_tokens = max_disp_len / 2;
+            max_append_tokens = (max_disp_len + 1) / 2;
+        }
 
         const vector<U8> doc_sep = {0xff, 0xff};
         U64 lo = 0, hi = shard.doc_cnt;
@@ -921,16 +927,16 @@ public:
         return DocResult{ .doc_ix = doc_ix, .doc_len = doc_len, .disp_len = disp_len, .metadata = metadata, .token_ids = token_ids, };
     }
 
-    void get_doc_by_ptr_inplace(const size_t s, const U64 ptr, const U64 max_disp_len, DocResult* const thread_output) const {
-        *thread_output = get_doc_by_ptr(s, ptr, max_disp_len);
+    void get_doc_by_ptr_inplace(const size_t s, const U64 ptr, const U64 max_disp_len, const bool len_as_ctx, DocResult* const thread_output) const {
+        *thread_output = get_doc_by_ptr(s, ptr, max_disp_len, len_as_ctx);
     }
 
-    vector<DocResult> get_docs_by_ptrs(const vector<pair<size_t, U64>> list_of_s_and_ptr, const U64 max_disp_len) const {
+    vector<DocResult> get_docs_by_ptrs(const vector<pair<size_t, U64>> list_of_s_and_ptr, const U64 max_disp_len, const bool len_as_ctx) const {
 
         vector<DocResult> docs(list_of_s_and_ptr.size());
         vector<thread> threads;
         for (size_t i = 0; i < list_of_s_and_ptr.size(); i++) {
-            threads.emplace_back(&Engine::get_doc_by_ptr_inplace, this, list_of_s_and_ptr[i].first, list_of_s_and_ptr[i].second, max_disp_len, &docs[i]);
+            threads.emplace_back(&Engine::get_doc_by_ptr_inplace, this, list_of_s_and_ptr[i].first, list_of_s_and_ptr[i].second, max_disp_len, len_as_ctx, &docs[i]);
         }
         for (auto &thread : threads) {
             thread.join();

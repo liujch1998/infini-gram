@@ -188,7 +188,7 @@ class InfiniGramEngine:
         documents: List[DocResult] = [{'doc_ix': d.doc_ix, 'doc_len': d.doc_len, 'disp_len': d.disp_len, 'metadata': d.metadata, 'token_ids': d.token_ids} for d in result.docs]
         return {'cnt': result.cnt, 'approx': result.approx, 'idxs': result.idxs, 'documents': documents}
 
-    def get_doc_by_rank(self, s: int, rank: int, max_disp_len: Optional[int] = None) -> InfiniGramEngineResponse[DocResult]:
+    def get_doc_by_rank(self, s: int, rank: int, max_disp_len: Optional[int] = None, len_as_ctx: Optional[bool] = False) -> InfiniGramEngineResponse[DocResult]:
         if max_disp_len is None:
             max_disp_len = self.max_disp_len
         if not (type(max_disp_len) == int and max_disp_len > 0):
@@ -200,10 +200,10 @@ class InfiniGramEngine:
         if not (type(rank) == int and 0 <= rank and rank < tok_cnt):
             return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
 
-        result = self.engine.get_doc_by_rank(s=s, rank=rank, max_disp_len=max_disp_len)
+        result = self.engine.get_doc_by_rank(s=s, rank=rank, max_disp_len=max_disp_len, len_as_ctx=len_as_ctx)
         return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'metadata': result.metadata, 'token_ids': result.token_ids}
 
-    def get_docs_by_ranks(self, list_of_s_and_rank: List[Tuple[int, int]], max_disp_len: Optional[int] = None) -> InfiniGramEngineResponse[List[DocResult]]:
+    def get_docs_by_ranks(self, list_of_s_and_rank: List[Tuple[int, int]], max_disp_len: Optional[int] = None, len_as_ctx: Optional[bool] = False) -> InfiniGramEngineResponse[List[DocResult]]:
         if max_disp_len is None:
             max_disp_len = self.max_disp_len
         if not (type(max_disp_len) == int and max_disp_len > 0):
@@ -216,10 +216,10 @@ class InfiniGramEngine:
             if not (type(rank) == int and 0 <= rank and rank < tok_cnt):
                 return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
 
-        results = self.engine.get_docs_by_rank(list_of_s_and_rank=list_of_s_and_rank, max_disp_len=max_disp_len)
+        results = self.engine.get_docs_by_rank(list_of_s_and_rank=list_of_s_and_rank, max_disp_len=max_disp_len, len_as_ctx=len_as_ctx)
         return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'metadata': result.metadata, 'token_ids': result.token_ids} for result in results]
 
-    def get_doc_by_ptr(self, s: int, ptr: int, max_disp_len: Optional[int] = None) -> InfiniGramEngineResponse[DocResult]:
+    def get_doc_by_ptr(self, s: int, ptr: int, max_disp_len: Optional[int] = None, len_as_ctx: Optional[bool] = False) -> InfiniGramEngineResponse[DocResult]:
         if max_disp_len is None:
             max_disp_len = self.max_disp_len
         if not (type(max_disp_len) == int and max_disp_len > 0):
@@ -231,10 +231,10 @@ class InfiniGramEngine:
         if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % 2 == 0):
             return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
 
-        result = self.engine.get_doc_by_ptr(s=s, ptr=ptr, max_disp_len=max_disp_len)
+        result = self.engine.get_doc_by_ptr(s=s, ptr=ptr, max_disp_len=max_disp_len, len_as_ctx=len_as_ctx)
         return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'metadata': result.metadata, 'token_ids': result.token_ids}
 
-    def get_docs_by_ptrs(self, list_of_s_and_ptr: List[Tuple[int, int]], max_disp_len: Optional[int] = None) -> InfiniGramEngineResponse[List[DocResult]]:
+    def get_docs_by_ptrs(self, list_of_s_and_ptr: List[Tuple[int, int]], max_disp_len: Optional[int] = None, len_as_ctx: Optional[bool] = False) -> InfiniGramEngineResponse[List[DocResult]]:
         if max_disp_len is None:
             max_disp_len = self.max_disp_len
         if not (type(max_disp_len) == int and max_disp_len > 0):
@@ -247,7 +247,7 @@ class InfiniGramEngine:
             if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % 2 == 0):
                 return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
 
-        results = self.engine.get_docs_by_ptrs(list_of_s_and_ptr=list_of_s_and_ptr, max_disp_len=max_disp_len)
+        results = self.engine.get_docs_by_ptrs(list_of_s_and_ptr=list_of_s_and_ptr, max_disp_len=max_disp_len, len_as_ctx=len_as_ctx)
         return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'metadata': result.metadata, 'token_ids': result.token_ids} for result in results]
 
     def get_doc_by_ix(self, doc_ix: int, max_disp_len: Optional[int]=None) -> InfiniGramEngineResponse[DocResult]:
