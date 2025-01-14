@@ -34,6 +34,12 @@ def main():
     print()
     print(engine.search_docs(input_ids=input_ids))
     print()
+    find_result = engine.find(input_ids=input_ids)
+    rank = find_result['segment_by_shard'][0][0]
+    doc = engine.get_doc_by_rank_2(s=0, rank=rank, needle_len=len(input_ids), max_ctx_len=10)
+    print(doc)
+    print()
+
 
 if __name__ == '__main__':
     main()

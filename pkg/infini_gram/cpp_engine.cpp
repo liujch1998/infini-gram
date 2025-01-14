@@ -52,6 +52,7 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def_readwrite("doc_ix", &DocResult::doc_ix)
         .def_readwrite("doc_len", &DocResult::doc_len)
         .def_readwrite("disp_len", &DocResult::disp_len)
+        .def_readwrite("needle_offset", &DocResult::needle_offset)
         .def_readwrite("metadata", &DocResult::metadata)
         .def_readwrite("token_ids", &DocResult::token_ids);
 
@@ -115,6 +116,10 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def("get_docs_by_ptrs", &Engine::get_docs_by_ptrs, "list_of_s_and_ptr"_a, "max_disp_len"_a)
         .def("get_doc_by_ix", &Engine::get_doc_by_ix, "doc_ix"_a, "max_disp_len"_a)
         .def("get_docs_by_ixs", &Engine::get_docs_by_ixs, "list_of_doc_ix"_a, "max_disp_len"_a)
+        .def("get_doc_by_rank_2", &Engine::get_doc_by_rank_2, "s"_a, "rank"_a, "needle_len"_a, "max_ctx_len"_a)
+        .def("get_docs_by_ranks_2", &Engine::get_docs_by_ranks_2, "list_of_s_and_rank"_a, "needle_len"_a, "max_ctx_len"_a)
+        .def("get_doc_by_ptr_2", &Engine::get_doc_by_ptr_2, "s"_a, "ptr"_a, "needle_len"_a, "max_ctx_len"_a)
+        .def("get_docs_by_ptrs_2", &Engine::get_docs_by_ptrs_2, "list_of_s_and_ptr"_a, "needle_len"_a, "max_ctx_len"_a)
         .def("get_num_shards", &Engine::get_num_shards)
         .def("get_tok_cnt", &Engine::get_tok_cnt, "s"_a)
         .def("get_ds_size", &Engine::get_ds_size, "s"_a)

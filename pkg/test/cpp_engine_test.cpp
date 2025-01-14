@@ -3,7 +3,7 @@
 #include "../infini_gram/cpp_engine.h"
 
 void print_doc(const DocResult &doc) {
-    cout << "{ doc_ix: " << doc.doc_ix << ", doc_len: " << doc.doc_len << ", disp_len: " << doc.disp_len << ", metadata: " << doc.metadata << ", token_ids: [ ";
+    cout << "{ doc_ix: " << doc.doc_ix << ", doc_len: " << doc.doc_len << ", disp_len: " << doc.disp_len << ", needle_offset: " << doc.needle_offset << ", metadata: " << doc.metadata << ", token_ids: [ ";
     for (auto token_id : doc.token_ids) cout << token_id << " ";
     cout << "] }" << endl;
     cout << endl;
@@ -15,7 +15,7 @@ void print_search_docs_result(const SearchDocsResult &result) {
     cout << "idxs: [ "; for (auto idx : result.idxs) cout << idx << " "; cout << "]" << endl;
     cout << "docs: " << endl;
     for (auto &doc : result.docs) {
-        cout << "  { doc_ix: " << doc.doc_ix << ", doc_len: " << doc.doc_len << ", disp_len: " << doc.disp_len << ", metadata: " << doc.metadata << ", token_ids: [ ";
+        cout << "  { doc_ix: " << doc.doc_ix << ", doc_len: " << doc.doc_len << ", disp_len: " << doc.disp_len << ", needle_offset: " << doc.needle_offset << ", metadata: " << doc.metadata << ", token_ids: [ ";
         for (auto token_id : doc.token_ids) cout << token_id << " ";
         cout << "] }" << endl;
     }
@@ -33,7 +33,7 @@ int main() {
     U64 max_disp_len = 20;
     size_t maxnum = 2;
 
-    auto engine = Engine({"../index/v4_pileval_llama"}, 2, false, 1, 3, 3);
+    auto engine = Engine({"../index/v4_pileval_llama"}, 2, false, 1, 3, 3, {}, false);
     // auto engine = Engine({"../index/v4_dolma-v1_6-sample_llama"}, 2, false, 1, 3, 3);
     // auto engine = Engine({"../index/v4_pileval_llama", "../index/v4_dolma-v1_6-sample_llama"}, 2, false, 1, 3, 3);
 

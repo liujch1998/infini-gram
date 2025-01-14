@@ -50,6 +50,7 @@ class DocResult(TypedDict):
     doc_ix: int
     doc_len: int
     disp_len: int
+    needle_offset: int
     metadata: str
     token_ids: List[int]
 
