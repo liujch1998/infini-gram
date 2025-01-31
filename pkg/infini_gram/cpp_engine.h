@@ -156,10 +156,12 @@ public:
 
         assert_little_endian();
 
+        vector<U64> unigram_counts(65536, 0);
+
         for (const auto &index_dir : index_dirs) {
             assert (fs::exists(index_dir));
 
-            vector<string> ds_paths, sa_paths, od_paths, mt_paths, om_paths;
+            vector<string> ds_paths, sa_paths, od_paths, mt_paths, om_paths, ug_paths;
             for (const auto &entry : fs::directory_iterator(index_dir)) {
                 if (entry.path().string().find("tokenized") != string::npos) {
                     ds_paths.push_back(entry.path());
@@ -171,6 +173,8 @@ public:
                     mt_paths.push_back(entry.path());
                 } else if (entry.path().string().find("metaoff") != string::npos) {
                     om_paths.push_back(entry.path());
+                } else if (entry.path().string().find("unigram") != string::npos) {
+                    ug_paths.push_back(entry.path());
                 }
             }
             sort(ds_paths.begin(), ds_paths.end());
@@ -182,6 +186,7 @@ public:
             assert (od_paths.size() == ds_paths.size());
             assert (mt_paths.size() == 0 || mt_paths.size() == ds_paths.size());
             assert (om_paths.size() == mt_paths.size());
+            assert (ug_paths.size() == 0 || ug_paths.size() == ds_paths.size());
 
             for (size_t s = 0; s < ds_paths.size(); s++) {
                 auto [ds, ds_size] = load_file(ds_paths[s]);
@@ -207,6 +212,23 @@ public:
                     auto shard = DatastoreShard{ds, sa, tok_cnt, ds_size, ptr_size, od, doc_cnt, mt, mt_size, om};
                     _shards.push_back(shard);
                 }
+
+                if (precompute_unigram_logprobs) {
+                    vector<U64> shard_unigram_counts(65536, 0);
+                    if (ug_paths.size() != 0) { // use cached result
+                        ifstream f(ug_paths[s]);
+                        U64 count;
+                        for (size_t i = 0; i < 65536; i++) {
+                            f >> count;
+                            shard_unigram_counts[i] = count;
+                        }
+                    } else { // compute result
+                        shard_unigram_counts = compute_unigram_counts(_shards.size() - 1);
+                    }
+                    for (size_t i = 0; i < 65536; i++) {
+                        unigram_counts[i] += shard_unigram_counts[i];
+                    }
+                }
             }
         }
 
@@ -216,24 +238,10 @@ public:
         if (precompute_unigram_logprobs) {
             _unigram_logprobs.resize(65536, -10000.0);
             U64 total_tok_cnt = get_total_tok_cnt();
-            for (U16 i = 0; i < 256; i++) {
-                vector<vector<U16>> input_ids(256);
-                for (U16 j = 0; j < 256; j++) {
-                    input_ids[j].push_back(i * 256 + j);
-                }
-                vector<CountResult> count_results(256);
-                vector<thread> threads;
-                for (U16 j = 0; j < 256; j++) {
-                    threads.emplace_back(&Engine::count_inplace, this, &input_ids[j], &count_results[j]);
-                }
-                for (auto &thread : threads) {
-                    thread.join();
-                }
-                for (U16 j = 0; j < 256; j++) {
-                    if (count_results[j].count > 0) {
-                        _unigram_logprobs[i * 256 + j] = log(count_results[j].count) - log(total_tok_cnt);
-                    }
-                    // cout << i * 256 + j << ' ' << _unigram_logprobs[i * 256 + j] << endl;
+            assert (total_tok_cnt == accumulate(unigram_counts.begin(), unigram_counts.end(), (U64)0));
+            for (size_t i = 0; i < 65536; i++) {
+                if (unigram_counts[i] > 0) {
+                    _unigram_logprobs[i] = log(unigram_counts[i]) - log(total_tok_cnt);
                 }
             }
         }
@@ -282,6 +290,39 @@ public:
         } else {
             munmap(ptr, size);
         }
+    }
+
+    vector<U64> compute_unigram_counts(const size_t s) const {
+        vector<U16> input_ids(65536);
+        for (size_t i = 0; i < 65536; i++) {
+            input_ids[i] = (U16)i;
+        }
+        const U8 *input_buf = reinterpret_cast<const U8*>(input_ids.data());
+        U64 num_bytes = sizeof(U16);
+        pair<U64, U64> hint_segment = {0, _shards[s].tok_cnt};
+
+        vector<U64> unigram_counts(65536, 0);
+        for (U16 j = 0; j < 256; j++) {
+            vector<U64> start_thread_outputs(256);
+            vector<U64> end_thread_outputs(256);
+            vector<thread> threads;
+            for (U16 k = 0; k < 256; k++) {
+                U16 i = j * 256 + k;
+                threads.emplace_back(&Engine::_find_thread, this, s,
+                    &input_ids, input_buf + i * num_bytes, num_bytes, hint_segment, true, &start_thread_outputs[k]);
+                threads.emplace_back(&Engine::_find_thread, this, s,
+                    &input_ids, input_buf + i * num_bytes, num_bytes, hint_segment, false, &end_thread_outputs[k]);
+            }
+            for (auto &thread : threads) {
+                thread.join();
+            }
+            for (U16 k = 0; k < 256; k++) {
+                assert (start_thread_outputs[k] <= end_thread_outputs[k]);
+                unigram_counts[j * 256 + k] = end_thread_outputs[k] - start_thread_outputs[k];
+            }
+        }
+
+        return unigram_counts;
     }
 
     FindResult find(const vector<U16> &input_ids) const {
@@ -1227,16 +1268,19 @@ public:
     vector<pair<PSS, FindResult>> compute_interesting_spans(const vector<U16> &input_ids, const vector<U16> &delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow) const {
 
         vector<vector<pair<PSS, FindResult>>> span_find_pairs_by_l(input_ids.size());
-        vector<thread> threads;
-        for (size_t l = 0; l < input_ids.size(); l++) {
-            // skip if this word is not a beginning-of-word
-            if (enforce_bow && _bow_ids.find(input_ids[l]) == _bow_ids.end()) continue;
+        const size_t BLOCK_SIZE = 512;
+        for (size_t l_block = 0; l_block < input_ids.size(); l_block += BLOCK_SIZE) {
+            vector<thread> threads;
+            for (size_t l = l_block; l < min(l_block + BLOCK_SIZE, input_ids.size()); l++) {
+                // skip if this word is not a beginning-of-word
+                if (enforce_bow && _bow_ids.find(input_ids[l]) == _bow_ids.end()) continue;
 
-            threads.emplace_back(&Engine::compute_interesting_spans_thread, this,
-                &input_ids, l, &delim_ids, min_len, max_cnt, enforce_bow, &span_find_pairs_by_l[l]);
-        }
-        for (auto &thread : threads) {
-            thread.join();
+                threads.emplace_back(&Engine::compute_interesting_spans_thread, this,
+                    &input_ids, l, &delim_ids, min_len, max_cnt, enforce_bow, &span_find_pairs_by_l[l]);
+            }
+            for (auto &thread : threads) {
+                thread.join();
+            }
         }
 
         vector<pair<PSS, FindResult>> flattened_span_find_pairs;

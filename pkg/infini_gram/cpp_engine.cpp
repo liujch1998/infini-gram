@@ -100,6 +100,7 @@ PYBIND11_MODULE(cpp_engine, m) {
 
     py::class_<Engine>(m, "Engine")
         .def(py::init<const vector<string>, const U16, const bool, const size_t, const size_t, const size_t, const set<U16>, const bool>())
+        .def("compute_unigram_counts", &Engine::compute_unigram_counts, "s"_a)
         .def("find", &Engine::find, "input_ids"_a)
         .def("find_cnf", &Engine::find_cnf, "cnf"_a, "max_clause_freq"_a, "max_diff_tokens"_a)
         .def("count", &Engine::count, "input_ids"_a)

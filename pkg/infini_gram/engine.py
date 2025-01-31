@@ -46,6 +46,9 @@ class InfiniGramEngine:
 
         self.engine = Engine(index_dir, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)
 
+    def compute_unigram_counts(self, s: int) -> List[int]:
+        return self.engine.compute_unigram_counts(s=s)
+
     def check_query_ids(self, query_ids: QueryIdsType, allow_empty: bool) -> bool:
         if not (type(query_ids) == list and (allow_empty or len(query_ids) > 0)):
             return False
