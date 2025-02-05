@@ -47,7 +47,7 @@ class CustomInstallCommand(install):
 
 setup(
     name='infini_gram',
-    version='2.2.2',
+    version='2.2.3',
     author='Jiacheng Liu',
     author_email='liujc@cs.washington.edu',
     description='A Python package for infini-gram',

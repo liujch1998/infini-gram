@@ -17,6 +17,9 @@
 #include <fstream>
 #include <deque>
 
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
 #define U64 uint64_t
 #define U32 uint32_t
 #define U16 uint16_t
@@ -25,6 +28,7 @@
 
 using namespace std;
 namespace fs = std::filesystem;
+namespace py = pybind11;
 
 void assert_little_endian() {
     unsigned int i = 1;
@@ -1047,6 +1051,8 @@ public:
 
     vector<DocResult> get_docs_by_ranks_2(const vector<pair<size_t, U64>> list_of_s_and_rank, const U64 needle_len, const U64 max_ctx_len) const {
 
+        py::gil_scoped_release release;
+
         vector<DocResult> docs(list_of_s_and_rank.size());
         vector<thread> threads;
         for (size_t i = 0; i < list_of_s_and_rank.size(); i++) {
@@ -1108,6 +1114,8 @@ public:
     }
 
     vector<DocResult> get_docs_by_ptrs_2(const vector<pair<size_t, U64>> list_of_s_and_ptr, const U64 needle_len, const U64 max_ctx_len) const {
+
+        py::gil_scoped_release release;
 
         vector<DocResult> docs(list_of_s_and_ptr.size());
         vector<thread> threads;
@@ -1358,6 +1366,8 @@ public:
     }
 
     AttributionResult attribute(const vector<U16> input_ids, const vector<U16> delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow) const {
+
+        py::gil_scoped_release release;
 
         vector<pair<PSS, FindResult>> span_find_pairs = compute_interesting_spans(input_ids, delim_ids, min_len, max_cnt, enforce_bow);
 
