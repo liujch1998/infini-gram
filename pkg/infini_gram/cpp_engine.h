@@ -17,9 +17,6 @@
 #include <fstream>
 #include <deque>
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-
 #define U64 uint64_t
 #define U32 uint32_t
 #define U16 uint16_t
@@ -28,7 +25,6 @@
 
 using namespace std;
 namespace fs = std::filesystem;
-namespace py = pybind11;
 
 void assert_little_endian() {
     unsigned int i = 1;
@@ -329,7 +325,7 @@ public:
         return unigram_counts;
     }
 
-    FindResult find(const vector<U16> &input_ids) const {
+    FindResult find(const vector<U16> input_ids) const {
 
         vector<pair<U64, U64>> hint_segment_by_shard;
         for (const auto &shard : _shards) {
@@ -615,7 +611,7 @@ public:
         *out_subsampling_factor = subsampling_factor;
     }
 
-    CountResult count(const vector<U16> &input_ids) const {
+    CountResult count(const vector<U16> input_ids) const {
         auto find_result = find(input_ids);
         return CountResult{ .count = find_result.cnt, .approx = false, };
     }
@@ -624,12 +620,12 @@ public:
         *thread_output = count(*input_ids);
     }
 
-    CountResult count_cnf(const vector<vector<vector<U16>>> &cnf, const U64 max_clause_freq, const U64 max_diff_tokens) const {
+    CountResult count_cnf(const vector<vector<vector<U16>>> cnf, const U64 max_clause_freq, const U64 max_diff_tokens) const {
         auto find_cnf_result = find_cnf(cnf, max_clause_freq, max_diff_tokens);
         return CountResult{ .count = find_cnf_result.cnt, .approx = find_cnf_result.approx, };
     }
 
-    ProbResult prob(const vector<U16> &prompt_ids, const U16 cont_id) const {
+    ProbResult prob(const vector<U16> prompt_ids, const U16 cont_id) const {
 
         auto prompt_find_result = find(prompt_ids);
         U64 prompt_cnt = prompt_find_result.cnt;
@@ -645,7 +641,7 @@ public:
         return ProbResult{ .prompt_cnt = prompt_cnt, .cont_cnt = cont_cnt, .prob = prob };
     }
 
-    DistResult ntd(const vector<U16> &prompt_ids, const U64 max_support) const {
+    DistResult ntd(const vector<U16> prompt_ids, const U64 max_support) const {
 
         auto prompt_find_result = find(prompt_ids);
         if (prompt_find_result.cnt == 0) {
@@ -748,7 +744,7 @@ public:
         }
     }
 
-    InfgramProbResult infgram_prob(const vector<U16> &prompt_ids, const U16 cont_id) const {
+    InfgramProbResult infgram_prob(const vector<U16> prompt_ids, const U16 cont_id) const {
 
         size_t L = prompt_ids.size();
         // binary lifting
@@ -785,7 +781,7 @@ public:
         };
     }
 
-    InfgramDistResult infgram_ntd(const vector<U16> &prompt_ids, const U64 max_support) const {
+    InfgramDistResult infgram_ntd(const vector<U16> prompt_ids, const U64 max_support) const {
 
         size_t L = prompt_ids.size();
         // binary lifting
@@ -822,7 +818,7 @@ public:
         };
     }
 
-    SearchDocsResult search_docs(const vector<U16> &input_ids, const size_t maxnum, const U64 max_disp_len) const {
+    SearchDocsResult search_docs(const vector<U16> input_ids, const size_t maxnum, const U64 max_disp_len) const {
 
         assert (maxnum > 0);
 
@@ -856,7 +852,7 @@ public:
         return SearchDocsResult{ .cnt = find_result.cnt, .approx = false, .idxs = idxs, .docs = docs, };
     }
 
-    SearchDocsResult search_docs_cnf(const vector<vector<vector<U16>>> &cnf, const size_t maxnum, const U64 max_disp_len, const U64 max_clause_freq, const U64 max_diff_tokens) const {
+    SearchDocsResult search_docs_cnf(const vector<vector<vector<U16>>> cnf, const size_t maxnum, const U64 max_disp_len, const U64 max_clause_freq, const U64 max_diff_tokens) const {
 
         assert (cnf.size() > 0);
         assert (maxnum > 0);
@@ -1051,8 +1047,6 @@ public:
 
     vector<DocResult> get_docs_by_ranks_2(const vector<pair<size_t, U64>> list_of_s_and_rank, const U64 needle_len, const U64 max_ctx_len) const {
 
-        py::gil_scoped_release release;
-
         vector<DocResult> docs(list_of_s_and_rank.size());
         vector<thread> threads;
         for (size_t i = 0; i < list_of_s_and_rank.size(); i++) {
@@ -1114,8 +1108,6 @@ public:
     }
 
     vector<DocResult> get_docs_by_ptrs_2(const vector<pair<size_t, U64>> list_of_s_and_ptr, const U64 needle_len, const U64 max_ctx_len) const {
-
-        py::gil_scoped_release release;
 
         vector<DocResult> docs(list_of_s_and_ptr.size());
         vector<thread> threads;
@@ -1247,7 +1239,7 @@ public:
         *out_r = l + len;
     }
 
-    CreativityResult creativity(const vector<U16> &input_ids) const {
+    CreativityResult creativity(const vector<U16> input_ids) const {
 
         vector<size_t> rs(input_ids.size());
         vector<thread> threads;
@@ -1366,8 +1358,6 @@ public:
     }
 
     AttributionResult attribute(const vector<U16> input_ids, const vector<U16> delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow) const {
-
-        py::gil_scoped_release release;
 
         vector<pair<PSS, FindResult>> span_find_pairs = compute_interesting_spans(input_ids, delim_ids, min_len, max_cnt, enforce_bow);
 
@@ -1556,15 +1546,16 @@ private:
     void _prefetch_ntd(const DatastoreShard &shard, const U64 num_bytes, const U64 lo, const U64 hi, const size_t depth = 0) const {
         U64 mi = (lo + hi) >> 1;
         if (mi >= shard.tok_cnt) return; // This might happen when lo = -1 and hi = 0
-        if (depth == _ds_prefetch_depth) { // fetch ds
+        if (_ds_prefetch_depth != 0 && depth == _ds_prefetch_depth) { // fetch ds
             U64 ptr = _convert_rank_to_ptr(shard, mi-1) + num_bytes;
             madvise(shard.ds + ptr - ptr % PAGESIZE, sizeof(U16) + ptr % PAGESIZE, MADV_WILLNEED);
             ptr = _convert_rank_to_ptr(shard, mi) + num_bytes;
             madvise(shard.ds + ptr - ptr % PAGESIZE, sizeof(U16) + ptr % PAGESIZE, MADV_WILLNEED);
-        } else if (depth == _sa_prefetch_depth) { // fetch sa
-            madvise(shard.sa + (mi-1) * shard.ptr_size - (mi-1) * shard.ptr_size % PAGESIZE, 2 * shard.ptr_size + (mi-1) * shard.ptr_size % PAGESIZE, MADV_WILLNEED); // since we need both mi-1 and mi
-            return;
         }
+        if (_ds_prefetch_depth != _sa_prefetch_depth && depth == _sa_prefetch_depth) { // fetch sa
+            madvise(shard.sa + (mi-1) * shard.ptr_size - (mi-1) * shard.ptr_size % PAGESIZE, 2 * shard.ptr_size + (mi-1) * shard.ptr_size % PAGESIZE, MADV_WILLNEED); // since we need both mi-1 and mi
+        }
+        if (depth == _sa_prefetch_depth) return;
         _prefetch_ntd(shard, num_bytes, lo, mi, depth + 1);
         _prefetch_ntd(shard, num_bytes, mi, hi, depth + 1);
     }

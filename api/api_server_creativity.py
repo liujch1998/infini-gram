@@ -39,7 +39,7 @@ class Processor:
         else:
             raise NotImplementedError
 
-        self.engine = InfiniGramEngine(index_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id)
+        self.engine = InfiniGramEngine(index_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id, ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0)
 
     def tokenize(self, query):
         if self.tokenizer_type == 'gpt2':

@@ -47,7 +47,7 @@ class Processor:
         else:
             raise NotImplementedError
 
-        self.engine = InfiniGramEngine(index_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id)
+        self.engine = InfiniGramEngine(index_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id, ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0)
 
     def tokenize(self, query):
         if self.tokenizer_type == 'gpt2':
@@ -375,4 +375,4 @@ def query():
         return jsonify({'error': f'[Flask] Internal server error: {e}'}), 500
     return jsonify(result), 200
 
-app.run(host='0.0.0.0', port=args.FLASK_PORT, threaded=False)
+app.run(host='0.0.0.0', port=args.FLASK_PORT, threaded=False, processes=10)
