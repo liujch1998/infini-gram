@@ -1045,12 +1045,12 @@ public:
         *thread_output = get_doc_by_rank_2(s, rank, needle_len, max_ctx_len);
     }
 
-    vector<DocResult> get_docs_by_ranks_2(const vector<pair<size_t, U64>> list_of_s_and_rank, const U64 needle_len, const U64 max_ctx_len) const {
+    vector<DocResult> get_docs_by_ranks_2(const vector<tuple<size_t, U64, U64, U64>> requests) const {
 
-        vector<DocResult> docs(list_of_s_and_rank.size());
+        vector<DocResult> docs(requests.size());
         vector<thread> threads;
-        for (size_t i = 0; i < list_of_s_and_rank.size(); i++) {
-            threads.emplace_back(&Engine::get_doc_by_rank_inplace_2, this, list_of_s_and_rank[i].first, list_of_s_and_rank[i].second, needle_len, max_ctx_len, &docs[i]);
+        for (size_t i = 0; i < requests.size(); i++) {
+            threads.emplace_back(&Engine::get_doc_by_rank_inplace_2, this, get<0>(requests[i]), get<1>(requests[i]), get<2>(requests[i]), get<3>(requests[i]), &docs[i]);
         }
         for (auto &thread : threads) {
             thread.join();
@@ -1107,12 +1107,62 @@ public:
         *thread_output = get_doc_by_ptr_2(s, ptr, needle_len, max_ctx_len);
     }
 
-    vector<DocResult> get_docs_by_ptrs_2(const vector<pair<size_t, U64>> list_of_s_and_ptr, const U64 needle_len, const U64 max_ctx_len) const {
+    vector<DocResult> get_docs_by_ptrs_2(const vector<tuple<size_t, U64, U64, U64>> requests) const {
 
-        vector<DocResult> docs(list_of_s_and_ptr.size());
+        vector<DocResult> docs(requests.size());
         vector<thread> threads;
-        for (size_t i = 0; i < list_of_s_and_ptr.size(); i++) {
-            threads.emplace_back(&Engine::get_doc_by_ptr_inplace_2, this, list_of_s_and_ptr[i].first, list_of_s_and_ptr[i].second, needle_len, max_ctx_len, &docs[i]);
+        for (size_t i = 0; i < requests.size(); i++) {
+            threads.emplace_back(&Engine::get_doc_by_ptr_inplace_2, this, get<0>(requests[i]), get<1>(requests[i]), get<2>(requests[i]), get<3>(requests[i]), &docs[i]);
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        return docs;
+    }
+
+    DocResult get_doc_by_ix_2(const U64 doc_ix, const U64 max_disp_len) const {
+
+        assert (doc_ix < get_total_doc_cnt());
+
+        size_t s = 0;
+        U64 local_doc_ix = doc_ix;
+        while (local_doc_ix >= _shards[s].doc_cnt) {
+            local_doc_ix -= _shards[s].doc_cnt;
+            s++;
+        }
+        const auto &shard = _shards[s];
+
+        U64 doc_start_ptr = _convert_doc_ix_to_ptr(shard, local_doc_ix) + sizeof(U16); // +2 because we want to skip the document separator
+        U64 doc_end_ptr = _convert_doc_ix_to_ptr(shard, local_doc_ix + 1);
+        U64 doc_len = (doc_end_ptr - doc_start_ptr) / sizeof(U16);
+
+        U64 disp_start_ptr = doc_start_ptr;
+        U64 disp_end_ptr = min(doc_end_ptr, doc_start_ptr + sizeof(U16) * max_disp_len);
+        U64 disp_len = (disp_end_ptr - disp_start_ptr) / sizeof(U16);
+
+        string metadata = "";
+        if (shard.mt) {
+            U64 meta_start_ptr = _convert_doc_ix_to_meta_ptr(shard, local_doc_ix);
+            U64 meta_end_ptr = _convert_doc_ix_to_meta_ptr(shard, local_doc_ix + 1);
+            vector<U8> meta_chars(shard.mt + meta_start_ptr, shard.mt + meta_end_ptr);
+            metadata = string(meta_chars.begin(), meta_chars.end());
+        }
+
+        vector<U16> token_ids(reinterpret_cast<U16*>(shard.ds + disp_start_ptr), reinterpret_cast<U16*>(shard.ds + disp_end_ptr));
+
+        return DocResult{ .doc_ix = doc_ix, .doc_len = doc_len, .disp_len = disp_len, .needle_offset = 0, .metadata = metadata, .token_ids = token_ids, };
+    }
+
+    void get_doc_by_ix_inplace_2(const U64 doc_ix, const U64 max_disp_len, DocResult* const thread_output) const {
+        *thread_output = get_doc_by_ix_2(doc_ix, max_disp_len);
+    }
+
+    vector<DocResult> get_docs_by_ixs_2(const vector<tuple<U64, U64>> requests) const {
+
+        vector<DocResult> docs(requests.size());
+        vector<thread> threads;
+        for (size_t i = 0; i < requests.size(); i++) {
+            threads.emplace_back(&Engine::get_doc_by_ix_inplace_2, this, get<0>(requests[i]), get<1>(requests[i]), &docs[i]);
         }
         for (auto &thread : threads) {
             thread.join();
