@@ -26,8 +26,13 @@ jobs:
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel==2.20.0
 
+      - name: Build rust_indexing
+        run: cargo --build
+        working-directory: ./pkg
+
       - name: Build wheels
-        run: cd pkg/; python -m cibuildwheel --output-dir wheelhouse
+        run: python -m cibuildwheel --output-dir wheelhouse
+        working-directory: ./pkg
 
       - uses: actions/upload-artifact@v4
         with:
