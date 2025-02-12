@@ -39,7 +39,7 @@ ext_modules = [
 class CustomInstallCommand(install):
     def run(self):
         install.run(self)
-        os.popen('curl -sSf https://sh.rustup.rs | sh -s -- -y && . "/root/.cargo/env" && cargo build --release').read()
+        os.popen(cmd='cargo build --release').read()
         src = os.path.join('target', 'release', 'rust_indexing')
         dest = os.path.join(self.install_lib, 'infini_gram', 'rust_indexing')
         shutil.copyfile(src, dest)
