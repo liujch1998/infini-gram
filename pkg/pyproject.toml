@@ -11,10 +11,10 @@ build-backend = "setuptools.build_meta"
 build = "cp3*-manylinux* cp3*-macos*"
 
 [tool.cibuildwheel.linux]
-before-all = 'curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y'
+before-all = "curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL \"https://sh.rustup.rs\" | sh -s -- --default-toolchain none -y"
 
 [tool.cibuildwheel.macos]
-before-all = 'curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y'
+before-all = "curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL \"https://sh.rustup.rs\" | sh -s -- --default-toolchain none -y"
 
 [[tool.cibuildwheel.overrides]]
 select = "*macosx_x86_64"
