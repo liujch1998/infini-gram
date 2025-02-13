@@ -17,12 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      # - name: Build rust_indexing
-      #   run: cargo build --release
-      #   working-directory: ./pkg
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22.0
         with:
