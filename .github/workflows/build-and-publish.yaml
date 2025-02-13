@@ -26,4 +26,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: infini-gram-${{ matrix.os }}-${{ strategy.job-index }}
-          path: ./pkg/wheelhouse/*.whl
+          path: ./wheelhouse/*.whl
