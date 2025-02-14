@@ -306,7 +306,7 @@ class InfiniGramEngine:
             if not (type(rank) == int and 0 <= rank and rank < tok_cnt):
                 return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
 
-        results = self.engine.get_docs_by_rank_2(requests=requests)
+        results = self.engine.get_docs_by_ranks_2(requests=requests)
         return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids} for result in results]
 
     def get_doc_by_ptr_2(self, s: int, ptr: int, needle_len: int, max_ctx_len: int) -> InfiniGramEngineResponse[DocResult]:
