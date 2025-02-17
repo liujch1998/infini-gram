@@ -83,8 +83,8 @@ def main():
 
     engine = InfiniGramEngineWithTakedown(
         index_dir=['../index/v4_pileval_llama'],
-        index_dir_diff=['../index/v4_pileval-0doc_llama'],
-        # index_dir_diff=['../index/v4_pileval-1doc_llama'],
+        # index_dir_diff=['../index/v4_pileval-0doc_llama'],
+        index_dir_diff=['../index/v4_pileval-1doc_llama'],
         # index_dir_diff=['../index/v4_pileval-p50doc_llama'],
         eos_token_id=2, bow_ids_path='./llama-2_bow_ids.txt', precompute_unigram_logprobs=True,
         ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0,

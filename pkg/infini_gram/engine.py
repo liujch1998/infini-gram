@@ -389,7 +389,7 @@ class InfiniGramEngine:
             ]
         }
 
-class InfiniGramEngineWithTakedown:
+class InfiniGramEngineWithTakedown(InfiniGramEngine):
 
     def __init__(self, index_dir: Iterable[str] | str, index_dir_diff: Iterable[str] | str, eos_token_id: int,
                  load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,

@@ -125,10 +125,8 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def("creativity", &Engine::creativity, py::call_guard<py::gil_scoped_release>(), "input_ids"_a)
         .def("attribute", &Engine::attribute, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "enforce_bow"_a);
 
-    py::class_<EngineWithTakedown>(m, "EngineWithTakedown")
+    py::class_<EngineWithTakedown, Engine>(m, "EngineWithTakedown")
         .def(py::init<const vector<string>, const vector<string>, const U16, const bool, const size_t, const size_t, const size_t, const set<U16>, const bool>())
-        .def("get_num_shards", &EngineWithTakedown::get_num_shards, py::call_guard<py::gil_scoped_release>())
-        .def("get_ds_size", &EngineWithTakedown::get_ds_size, py::call_guard<py::gil_scoped_release>(), "s"_a)
         .def("get_docs_by_ptrs_2", &EngineWithTakedown::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a)
         .def("attribute", &EngineWithTakedown::attribute, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "enforce_bow"_a);
 }

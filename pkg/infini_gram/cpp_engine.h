@@ -1527,7 +1527,7 @@ private:
     friend class EngineWithTakedown;
 };
 
-class EngineWithTakedown {
+class EngineWithTakedown : public Engine {
 
 public:
 
@@ -1535,19 +1535,8 @@ public:
         const vector<string> index_dirs, const vector<string> index_dirs_diff, const U16 eos_token_id,
         const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth,
         const set<U16> bow_ids, const bool precompute_unigram_logprobs)
-        : _engine_main(make_unique<Engine>(index_dirs, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)),
+        : Engine(index_dirs, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs),
           _engine_diff(make_unique<Engine>(index_dirs_diff, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)) {}
-
-    ~EngineWithTakedown() = default;
-
-    size_t get_num_shards() const {
-        return _engine_main->_num_shards;
-    }
-
-    U64 get_ds_size(const size_t s) const {
-        assert (s < _engine_main->_num_shards);
-        return _engine_main->_shards[s].ds_size;
-    }
 
     // The shape of returned document results is identical to the shape of input requests. Blocked documents are marked and have an empty token_ids.
     vector<vector<DocResult>> get_docs_by_ptrs_2(const vector<tuple<vector<pair<size_t, U64>>, vector<pair<size_t, U64>>, U64, U64>> requests) const {
@@ -1561,7 +1550,7 @@ public:
             for (const auto &[s, ptr] : get<0>(request)) {
                 requests_main.emplace_back(s, ptr, get<2>(request), get<3>(request));
             }
-            threads.emplace_back(&Engine::get_docs_by_ptrs_inplace_2, _engine_main.get(), requests_main, &docs_main_by_request[r]);
+            threads.emplace_back(&Engine::get_docs_by_ptrs_inplace_2, this, requests_main, &docs_main_by_request[r]);
 
             vector<tuple<size_t, U64, U64, U64>> requests_diff;
             for (const auto &[s, ptr] : get<1>(request)) {
@@ -1592,11 +1581,11 @@ public:
 
     size_t compute_longest_prefix_len(const vector<U16> &input_ids, const vector<U16> &delim_ids, const bool enforce_bow = false) const {
 
-        size_t longest_prefix_len = _engine_main->compute_longest_prefix_len(input_ids, delim_ids, enforce_bow);
+        size_t longest_prefix_len = Engine::compute_longest_prefix_len(input_ids, delim_ids, enforce_bow);
 
         // consider takedown
         while (longest_prefix_len > 0) {
-            auto count_main = _engine_main->count({input_ids.begin(), input_ids.begin() + longest_prefix_len}).count;
+            auto count_main = count({input_ids.begin(), input_ids.begin() + longest_prefix_len}).count;
             auto count_diff = _engine_diff->count({input_ids.begin(), input_ids.begin() + longest_prefix_len}).count;
             if (count_main > count_diff) break;
             longest_prefix_len--;
@@ -1611,7 +1600,7 @@ public:
         size_t len = compute_longest_prefix_len(suffix_ids, *delim_ids, enforce_bow);
         if (len < min_len) return;
         vector<U16> span_ids(input_ids->begin() + l, input_ids->begin() + l + len);
-        auto find_result_main = _engine_main->find(span_ids);
+        auto find_result_main = find(span_ids);
         if (find_result_main.cnt > max_cnt) return;
         auto find_result_diff = _engine_diff->find(span_ids);
         out_span_find_tuples->push_back({{l, l + len}, find_result_main, find_result_diff});
@@ -1625,7 +1614,7 @@ public:
             vector<thread> threads;
             for (size_t l = l_block; l < min(l_block + BLOCK_SIZE, input_ids.size()); l++) {
                 // skip if this word is not a beginning-of-word
-                if (enforce_bow && _engine_main->_bow_ids.find(input_ids[l]) == _engine_main->_bow_ids.end()) continue;
+                if (enforce_bow && _bow_ids.find(input_ids[l]) == _bow_ids.end()) continue;
 
                 threads.emplace_back(&EngineWithTakedown::compute_interesting_spans_thread, this,
                     &input_ids, l, &delim_ids, min_len, max_cnt, enforce_bow, &span_find_tuples_by_l[l]);
@@ -1660,7 +1649,7 @@ public:
         pair<PSS, FindResult> span_find_pair_main{span, find_result_main};
         pair<PSS, FindResult> span_find_pair_diff{span, find_result_diff};
         AttributionSpan span_main, span_diff;
-        _engine_main->get_attribution_span_thread(&span_find_pair_main, &span_main);
+        Engine::get_attribution_span_thread(&span_find_pair_main, &span_main);
         _engine_diff->get_attribution_span_thread(&span_find_pair_diff, &span_diff);
         out_attribution_span->l = span.first;
         out_attribution_span->r = span.second;
@@ -1689,7 +1678,7 @@ public:
         for (auto &attribution_span : attribution_spans) {
             float unigram_logprob_sum = 0.0f;
             for (auto i = attribution_span.l; i < attribution_span.r; i++) {
-                unigram_logprob_sum += _engine_main->_unigram_logprobs[input_ids[i]];
+                unigram_logprob_sum += _unigram_logprobs[input_ids[i]];
             }
             attribution_span.unigram_logprob_sum = unigram_logprob_sum;
         }
@@ -1699,6 +1688,5 @@ public:
 
 private:
 
-    unique_ptr<Engine> _engine_main;
     unique_ptr<Engine> _engine_diff;
 };
