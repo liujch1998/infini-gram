@@ -45,8 +45,8 @@ def format_doc(doc, span_ids):
     return output
 
 def main():
-    # text = 'Puigdemont calls for talks with Spain Published duration 22 December 2017 Related Topics Catalonia independence protests'
-    text = '''Jacob Bernoulli (1654–1705) was a Swiss mathematician and a member of the Bernoulli family'''
+    text = 'Puigdemont calls for talks with Spain Published duration 22 December 2017 Related Topics Catalonia independence protests'
+    # text = '''Jacob Bernoulli (1654–1705) was a Swiss mathematician and a member of the Bernoulli family'''
     input_ids = tokenizer.encode(text)
 
     print('Before takedown:')
@@ -68,24 +68,24 @@ def main():
         disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
         print(f'\tl = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
     print('='*80)
-    # for span in spans:
-    #     disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
-    #     print(f'l = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
-    #     for d, doc in enumerate(span['docs']):
-    #         print()
-    #         print(f'Doc #{d}: doc_ix = {doc["doc_ix"]}, doc_len = {doc["doc_len"]}, disp_len = {doc["disp_len"]}, needle_offset = {doc["needle_offset"]}, blocked = {doc["blocked"]}')
-    #         print(format_doc(doc, span_ids=input_ids[span['l']:span['r']]))
-    #     print('-'*80)
-    # print('='*80)
+    for span in spans:
+        disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
+        print(f'l = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
+        for d, doc in enumerate(span['docs']):
+            print()
+            print(f'Doc #{d}: doc_ix = {doc["doc_ix"]}, doc_len = {doc["doc_len"]}, disp_len = {doc["disp_len"]}, needle_offset = {doc["needle_offset"]}, blocked = {doc["blocked"]}')
+            print(format_doc(doc, span_ids=input_ids[span['l']:span['r']]))
+        print('-'*80)
+    print('='*80)
 
 
     print('After takedown:')
 
     engine = InfiniGramEngineWithTakedown(
         index_dir=['../index/v4_pileval_llama'],
-        # index_dir_diff=['../index/v4_pileval-0doc_llama'],
+        index_dir_diff=['../index/v4_pileval-0doc_llama'],
         # index_dir_diff=['../index/v4_pileval-1doc_llama'],
-        index_dir_diff=['../index/v4_pileval-p50doc_llama'],
+        # index_dir_diff=['../index/v4_pileval-p50doc_llama'],
         eos_token_id=2, bow_ids_path='./llama-2_bow_ids.txt', precompute_unigram_logprobs=True,
         ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0,
     )
@@ -102,15 +102,15 @@ def main():
         disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
         print(f'\tl = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
     print('='*80)
-    # for span in spans:
-    #     disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
-    #     print(f'l = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
-    #     for d, doc in enumerate(span['docs']):
-    #         print()
-    #         print(f'Doc #{d}: doc_ix = {doc["doc_ix"]}, doc_len = {doc["doc_len"]}, disp_len = {doc["disp_len"]}, needle_offset = {doc["needle_offset"]}, blocked = {doc["blocked"]}')
-    #         print(format_doc(doc, span_ids=input_ids[span['l']:span['r']]))
-    #     print('-'*80)
-    # print('='*80)
+    for span in spans:
+        disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
+        print(f'l = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
+        for d, doc in enumerate(span['docs']):
+            print()
+            print(f'Doc #{d}: doc_ix = {doc["doc_ix"]}, doc_len = {doc["doc_len"]}, disp_len = {doc["disp_len"]}, needle_offset = {doc["needle_offset"]}, blocked = {doc["blocked"]}')
+            print(format_doc(doc, span_ids=input_ids[span['l']:span['r']]))
+        print('-'*80)
+    print('='*80)
 
 
 if __name__ == '__main__':
