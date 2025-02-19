@@ -389,7 +389,7 @@ class InfiniGramEngine:
             ]
         }
 
-class InfiniGramEngineWithTakedown(InfiniGramEngine):
+class InfiniGramEngineDiff(InfiniGramEngine):
 
     def __init__(self, index_dir: Iterable[str] | str, index_dir_diff: Iterable[str] | str, eos_token_id: int,
                  load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
@@ -432,7 +432,7 @@ class InfiniGramEngineWithTakedown(InfiniGramEngine):
                 print(f"Error reading bow_ids_path: {e}")
                 raise e
 
-        self.engine = cpp_engine.EngineWithTakedown(index_dir, index_dir_diff, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)
+        self.engine = cpp_engine.EngineDiff(index_dir, index_dir_diff, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)
 
     def get_docs_by_ptrs_2(self, requests: List[GetDocsByPtrsRequestWithTakedown]) -> InfiniGramEngineResponse[List[List[DocResult]]]:
         num_shards = self.engine.get_num_shards()
@@ -455,33 +455,8 @@ class InfiniGramEngineWithTakedown(InfiniGramEngine):
         resultss = self.engine.get_docs_by_ptrs_2(requests=[
             (
                 [(doc['s'], doc['ptr']) for doc in request['docs']],
-                [(doc['s'], doc['ptr']) for doc in request['docs_takedown']],
+                request['span_ids'],
                 request['needle_len'],
                 request['max_ctx_len'],
             ) for request in requests])
         return [[{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results] for results in resultss]
-
-    def attribute(self, input_ids: QueryIdsType, delim_ids: Iterable[int], min_len: int, max_cnt: int, enforce_bow: bool) -> AttributionResultWithTakedown:
-        result = self.engine.attribute(input_ids=input_ids, delim_ids=delim_ids, min_len=min_len, max_cnt=max_cnt, enforce_bow=enforce_bow)
-
-        return {
-            "spans": [
-                AttributionSpanWithTakedown(
-                    l=span.l,
-                    r=span.r,
-                    length=span.length,
-                    count=span.count,
-                    unigram_logprob_sum=span.unigram_logprob_sum,
-                    docs=[
-                        AttributionDoc(s=doc.s, ptr=doc.ptr)
-                        for doc in span.docs
-                    ],
-                    docs_takedown=[
-                        AttributionDoc(s=doc.s, ptr=doc.ptr)
-                        for doc in span.docs_takedown
-                    ],
-                   # The spans we get back from result aren't typed so Pylance doesn't like us feeding them into AttributionSpan
-                )  # type: ignore
-                for span in result.spans
-            ]
-        }

@@ -81,12 +81,6 @@ class AttributionResponse(TypedDict):
 
 class GetDocsByPtrsRequestWithTakedown(TypedDict):
     docs: List[AttributionDoc]
+    span_ids: List[int]
     needle_len: int
     max_ctx_len: int
-    docs_takedown: List[AttributionDoc]
-
-class AttributionSpanWithTakedown(AttributionSpan):
-    docs_takedown: List[AttributionDoc]
-
-class AttributionResultWithTakedown(TypedDict):
-    spans: List[AttributionSpanWithTakedown]

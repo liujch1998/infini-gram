@@ -123,20 +123,8 @@ struct AttributionSpan {
 struct AttributionResult {
     vector<AttributionSpan> spans;
 };
-struct AttributionSpanWithTakedown {
-    size_t l;
-    size_t r;
-    size_t length;
-    U64 count;
-    float unigram_logprob_sum;
-    vector<AttributionDoc> docs;
-    vector<AttributionDoc> docs_takedown;
-};
-struct AttributionResultWithTakedown {
-    vector<AttributionSpanWithTakedown> spans;
-};
 
-class EngineWithTakedown;
+class EngineDiff;
 
 class Engine {
 
@@ -1054,6 +1042,10 @@ public:
         return docs;
     }
 
+    void get_docs_by_ranks_inplace_2(const vector<tuple<size_t, U64, U64, U64>> requests, vector<DocResult>* const thread_output) const {
+        *thread_output = get_docs_by_ranks_2(requests);
+    }
+
     DocResult get_doc_by_ptr_2(const size_t s, const U64 ptr, const U64 needle_len, const U64 max_ctx_len) const {
 
         assert (s < _num_shards);
@@ -1242,7 +1234,7 @@ public:
         }
     }
 
-    size_t compute_longest_prefix_len(const vector<U16> &input_ids, const vector<U16> &delim_ids, const bool enforce_bow = false) const {
+    virtual size_t compute_longest_prefix_len(const vector<U16> &input_ids, const vector<U16> &delim_ids, const bool enforce_bow = false) const {
 
         vector<thread> threads;
         vector<size_t> longest_prefix_len_by_shard(_num_shards);
@@ -1524,14 +1516,14 @@ private:
     vector<DatastoreShard> _shards;
     vector<double> _unigram_logprobs;
 
-    friend class EngineWithTakedown;
+    friend class EngineDiff;
 };
 
-class EngineWithTakedown : public Engine {
+class EngineDiff : public Engine {
 
 public:
 
-    EngineWithTakedown(
+    EngineDiff(
         const vector<string> index_dirs, const vector<string> index_dirs_diff, const U16 eos_token_id,
         const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth,
         const set<U16> bow_ids, const bool precompute_unigram_logprobs)
@@ -1539,7 +1531,7 @@ public:
           _engine_diff(make_unique<Engine>(index_dirs_diff, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)) {}
 
     // The shape of returned document results is identical to the shape of input requests. Blocked documents are marked and have an empty token_ids.
-    vector<vector<DocResult>> get_docs_by_ptrs_2(const vector<tuple<vector<pair<size_t, U64>>, vector<pair<size_t, U64>>, U64, U64>> requests) const {
+    vector<vector<DocResult>> get_docs_by_ptrs_2(const vector<tuple<vector<pair<size_t, U64>>, vector<U16>, U64, U64>> requests) const {
 
         vector<vector<DocResult>> docs_main_by_request(requests.size());
         vector<vector<DocResult>> docs_diff_by_request(requests.size());
@@ -1552,11 +1544,16 @@ public:
             }
             threads.emplace_back(&Engine::get_docs_by_ptrs_inplace_2, this, requests_main, &docs_main_by_request[r]);
 
+            const auto &span_ids = get<1>(request);
+            auto find_result_diff = _engine_diff->find(span_ids);
             vector<tuple<size_t, U64, U64, U64>> requests_diff;
-            for (const auto &[s, ptr] : get<1>(request)) {
-                requests_diff.emplace_back(s, ptr, get<2>(request), get<3>(request));
+            for (size_t s = 0; s < _engine_diff->get_num_shards(); s++) {
+                auto [start, end] = find_result_diff.segment_by_shard[s];
+                for (U64 rank = start; rank < end; rank++) {
+                    requests_diff.emplace_back(s, rank, get<2>(request), get<3>(request));
+                }
             }
-            threads.emplace_back(&Engine::get_docs_by_ptrs_inplace_2, _engine_diff.get(), requests_diff, &docs_diff_by_request[r]);
+            threads.emplace_back(&Engine::get_docs_by_ranks_inplace_2, _engine_diff.get(), requests_diff, &docs_diff_by_request[r]);
         }
         for (auto &thread : threads) {
             thread.join();
@@ -1566,7 +1563,7 @@ public:
             auto &docs_main = docs_main_by_request[r];
             auto &docs_diff = docs_diff_by_request[r];
             for (auto &doc_main : docs_main) {
-                // if doc_main.token_ids match any of the takedowns, block this document
+                // if doc_main.token_ids match any in the diff index, block this document
                 if (any_of(docs_diff.begin(), docs_diff.end(), [&](const DocResult &doc_diff) {
                     return doc_main.token_ids == doc_diff.token_ids;
                 })) {
@@ -1579,11 +1576,11 @@ public:
         return docs_main_by_request;
     }
 
-    size_t compute_longest_prefix_len(const vector<U16> &input_ids, const vector<U16> &delim_ids, const bool enforce_bow = false) const {
+    size_t compute_longest_prefix_len(const vector<U16> &input_ids, const vector<U16> &delim_ids, const bool enforce_bow = false) const override {
 
         size_t longest_prefix_len = Engine::compute_longest_prefix_len(input_ids, delim_ids, enforce_bow);
 
-        // consider takedown
+        // consider docs in the diff index
         while (longest_prefix_len > 0) {
             auto count_main = count({input_ids.begin(), input_ids.begin() + longest_prefix_len}).count;
             auto count_diff = _engine_diff->count({input_ids.begin(), input_ids.begin() + longest_prefix_len}).count;
@@ -1592,98 +1589,6 @@ public:
         }
 
         return longest_prefix_len;
-    }
-
-    void compute_interesting_spans_thread(const vector<U16>* const input_ids, const size_t l, const vector<U16>* const delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow, vector<tuple<PSS, FindResult, FindResult>>* const out_span_find_tuples) const {
-
-        vector<U16> suffix_ids(input_ids->begin() + l, input_ids->end());
-        size_t len = compute_longest_prefix_len(suffix_ids, *delim_ids, enforce_bow);
-        if (len < min_len) return;
-        vector<U16> span_ids(input_ids->begin() + l, input_ids->begin() + l + len);
-        auto find_result_main = find(span_ids);
-        if (find_result_main.cnt > max_cnt) return;
-        auto find_result_diff = _engine_diff->find(span_ids);
-        out_span_find_tuples->push_back({{l, l + len}, find_result_main, find_result_diff});
-    }
-
-    vector<tuple<PSS, FindResult, FindResult>> compute_interesting_spans(const vector<U16> &input_ids, const vector<U16> &delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow) const {
-
-        vector<vector<tuple<PSS, FindResult, FindResult>>> span_find_tuples_by_l(input_ids.size());
-        const size_t BLOCK_SIZE = 512;
-        for (size_t l_block = 0; l_block < input_ids.size(); l_block += BLOCK_SIZE) {
-            vector<thread> threads;
-            for (size_t l = l_block; l < min(l_block + BLOCK_SIZE, input_ids.size()); l++) {
-                // skip if this word is not a beginning-of-word
-                if (enforce_bow && _bow_ids.find(input_ids[l]) == _bow_ids.end()) continue;
-
-                threads.emplace_back(&EngineWithTakedown::compute_interesting_spans_thread, this,
-                    &input_ids, l, &delim_ids, min_len, max_cnt, enforce_bow, &span_find_tuples_by_l[l]);
-            }
-            for (auto &thread : threads) {
-                thread.join();
-            }
-        }
-
-        vector<tuple<PSS, FindResult, FindResult>> flattened_span_find_tuples;
-        for (const auto &span_find_tuples : span_find_tuples_by_l) {
-            flattened_span_find_tuples.insert(flattened_span_find_tuples.end(), span_find_tuples.begin(), span_find_tuples.end());
-        }
-
-        vector<tuple<PSS, FindResult, FindResult>> filtered_span_find_tuples;
-        size_t last_r = 0;
-        for (const auto &span_find_tuple : flattened_span_find_tuples) {
-            auto &[span, find_result, _] = span_find_tuple;
-            size_t l = span.first, r = span.second;
-            if (r > last_r) {
-                last_r = r;
-                filtered_span_find_tuples.push_back(span_find_tuple);
-            }
-        }
-
-        return filtered_span_find_tuples;
-    }
-
-    void get_attribution_span_thread(const tuple<PSS, FindResult, FindResult>* const span_find_tuple, AttributionSpanWithTakedown* const out_attribution_span) const {
-
-        const auto &[span, find_result_main, find_result_diff] = *span_find_tuple;
-        pair<PSS, FindResult> span_find_pair_main{span, find_result_main};
-        pair<PSS, FindResult> span_find_pair_diff{span, find_result_diff};
-        AttributionSpan span_main, span_diff;
-        Engine::get_attribution_span_thread(&span_find_pair_main, &span_main);
-        _engine_diff->get_attribution_span_thread(&span_find_pair_diff, &span_diff);
-        out_attribution_span->l = span.first;
-        out_attribution_span->r = span.second;
-        out_attribution_span->length = span.second - span.first;
-        out_attribution_span->count = find_result_main.cnt;
-        out_attribution_span->docs = span_main.docs;
-        out_attribution_span->docs_takedown = span_diff.docs;
-    }
-
-    // For each span returned, the count field does not exclude takedowns, such that it is consistent with the length of the docs field.
-    // The user is responsible for providing the docs_takedown field when fetching docs.
-    AttributionResultWithTakedown attribute(const vector<U16> input_ids, const vector<U16> delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow) const {
-
-        vector<tuple<PSS, FindResult, FindResult>> span_find_tuples = compute_interesting_spans(input_ids, delim_ids, min_len, max_cnt, enforce_bow);
-
-        vector<AttributionSpanWithTakedown> attribution_spans(span_find_tuples.size());
-        vector<thread> threads;
-        for (size_t i = 0; i < span_find_tuples.size(); i++) {
-            threads.emplace_back(&EngineWithTakedown::get_attribution_span_thread, this, &span_find_tuples[i], &attribution_spans[i]);
-        }
-        for (auto &thread : threads) {
-            thread.join();
-        }
-
-        // populate the unigram_logprob_sum for each attribution_span
-        for (auto &attribution_span : attribution_spans) {
-            float unigram_logprob_sum = 0.0f;
-            for (auto i = attribution_span.l; i < attribution_span.r; i++) {
-                unigram_logprob_sum += _unigram_logprobs[input_ids[i]];
-            }
-            attribution_span.unigram_logprob_sum = unigram_logprob_sum;
-        }
-
-        return AttributionResultWithTakedown{ .spans = attribution_spans, };
     }
 
 private:

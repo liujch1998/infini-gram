@@ -8,7 +8,7 @@ import time
 import numpy as np
 import transformers
 sys.path = ['../pkg'] + sys.path
-from infini_gram.engine import InfiniGramEngine, InfiniGramEngineWithTakedown
+from infini_gram.engine import InfiniGramEngine, InfiniGramEngineDiff
 
 tokenizer = transformers.AutoTokenizer.from_pretrained('meta-llama/Llama-2-7b-hf', add_bos_token=False, add_eos_token=False)
 delim_ids = [13, 29889] # \n is 13; . is 29889
@@ -81,7 +81,7 @@ def main():
 
     print('After takedown:')
 
-    engine = InfiniGramEngineWithTakedown(
+    engine = InfiniGramEngineDiff(
         index_dir=['../index/v4_pileval_llama'],
         # index_dir_diff=['../index/v4_pileval-0doc_llama'],
         index_dir_diff=['../index/v4_pileval-1doc_llama'],
@@ -92,7 +92,7 @@ def main():
 
     attribution_result = engine.attribute(input_ids=input_ids, delim_ids=delim_ids, min_len=1, max_cnt=1000000, enforce_bow=True)
     spans = attribution_result["spans"]
-    docss = engine.get_docs_by_ptrs_2(requests=[{'docs': span['docs'][:3], 'docs_takedown': span['docs_takedown'], 'needle_len': span['length'], 'max_ctx_len': 20} for span in spans])
+    docss = engine.get_docs_by_ptrs_2(requests=[{'docs': span['docs'][:3], 'span_ids': input_ids[span['l']:span['r']], 'needle_len': span['length'], 'max_ctx_len': 20} for span in spans])
     for span, docs in zip(spans, docss):
         span['docs'] = docs
 

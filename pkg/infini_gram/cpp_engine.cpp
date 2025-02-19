@@ -81,18 +81,6 @@ PYBIND11_MODULE(cpp_engine, m) {
     py::class_<AttributionResult>(m, "AttributionResult")
         .def_readwrite("spans", &AttributionResult::spans);
 
-    py::class_<AttributionSpanWithTakedown>(m, "AttributionSpanWithTakedown")
-        .def_readwrite("l", &AttributionSpanWithTakedown::l)
-        .def_readwrite("r", &AttributionSpanWithTakedown::r)
-        .def_readwrite("length", &AttributionSpanWithTakedown::length)
-        .def_readwrite("count", &AttributionSpanWithTakedown::count)
-        .def_readwrite("unigram_logprob_sum", &AttributionSpanWithTakedown::unigram_logprob_sum)
-        .def_readwrite("docs", &AttributionSpanWithTakedown::docs)
-        .def_readwrite("docs_takedown", &AttributionSpanWithTakedown::docs_takedown);
-
-    py::class_<AttributionResultWithTakedown>(m, "AttributionResultWithTakedown")
-        .def_readwrite("spans", &AttributionResultWithTakedown::spans);
-
     py::class_<Engine>(m, "Engine")
         .def(py::init<const vector<string>, const U16, const bool, const size_t, const size_t, const size_t, const set<U16>, const bool>())
         .def("compute_unigram_counts", &Engine::compute_unigram_counts, "s"_a)
@@ -125,8 +113,7 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def("creativity", &Engine::creativity, py::call_guard<py::gil_scoped_release>(), "input_ids"_a)
         .def("attribute", &Engine::attribute, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "enforce_bow"_a);
 
-    py::class_<EngineWithTakedown, Engine>(m, "EngineWithTakedown")
+    py::class_<EngineDiff, Engine>(m, "EngineDiff")
         .def(py::init<const vector<string>, const vector<string>, const U16, const bool, const size_t, const size_t, const size_t, const set<U16>, const bool>())
-        .def("get_docs_by_ptrs_2", &EngineWithTakedown::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a)
-        .def("attribute", &EngineWithTakedown::attribute, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "enforce_bow"_a);
+        .def("get_docs_by_ptrs_2", &EngineDiff::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a);
 }
