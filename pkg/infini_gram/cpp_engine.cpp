@@ -54,7 +54,8 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def_readwrite("disp_len", &DocResult::disp_len)
         .def_readwrite("needle_offset", &DocResult::needle_offset)
         .def_readwrite("metadata", &DocResult::metadata)
-        .def_readwrite("token_ids", &DocResult::token_ids);
+        .def_readwrite("token_ids", &DocResult::token_ids)
+        .def_readwrite("blocked", &DocResult::blocked);
 
     py::class_<SearchDocsResult>(m, "SearchDocsResult")
         .def_readwrite("cnt", &SearchDocsResult::cnt)
@@ -79,24 +80,6 @@ PYBIND11_MODULE(cpp_engine, m) {
 
     py::class_<AttributionResult>(m, "AttributionResult")
         .def_readwrite("spans", &AttributionResult::spans);
-
-    py::class_<Attribution2Doc>(m, "Attribution2Doc")
-        .def_readwrite("s", &Attribution2Doc::s)
-        .def_readwrite("local_doc_ix", &Attribution2Doc::local_doc_ix)
-        .def_readwrite("doc_start_ptr", &Attribution2Doc::doc_start_ptr)
-        .def_readwrite("doc_end_ptr", &Attribution2Doc::doc_end_ptr)
-        .def_readwrite("doc_ix", &Attribution2Doc::doc_ix)
-        .def_readwrite("doc_len", &Attribution2Doc::doc_len)
-        .def_readwrite("disp_len", &Attribution2Doc::disp_len)
-        .def_readwrite("disp_offset", &Attribution2Doc::disp_offset)
-        .def_readwrite("metadata", &Attribution2Doc::metadata)
-        .def_readwrite("token_ids", &Attribution2Doc::token_ids)
-        .def_readwrite("token_offset_span_pairs", &Attribution2Doc::token_offset_span_pairs)
-        .def_readwrite("total_matched_len", &Attribution2Doc::total_matched_len);
-
-    py::class_<Attribution2Result>(m, "Attribution2Result")
-        .def_readwrite("spans", &Attribution2Result::spans)
-        .def_readwrite("docs", &Attribution2Result::docs);
 
     py::class_<Engine>(m, "Engine")
         .def(py::init<const vector<string>, const U16, const bool, const size_t, const size_t, const size_t, const set<U16>, const bool>())
@@ -128,6 +111,9 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def("get_ds_size", &Engine::get_ds_size, py::call_guard<py::gil_scoped_release>(), "s"_a)
         .def("get_total_doc_cnt", &Engine::get_total_doc_cnt, py::call_guard<py::gil_scoped_release>())
         .def("creativity", &Engine::creativity, py::call_guard<py::gil_scoped_release>(), "input_ids"_a)
-        .def("attribute", &Engine::attribute, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "enforce_bow"_a)
-        .def("attribute_2", &Engine::attribute_2, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "max_docs"_a, "max_disp_len"_a);
+        .def("attribute", &Engine::attribute, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "enforce_bow"_a);
+
+    py::class_<EngineDiff, Engine>(m, "EngineDiff")
+        .def(py::init<const vector<string>, const vector<string>, const U16, const bool, const size_t, const size_t, const size_t, const set<U16>, const bool>())
+        .def("get_docs_by_ptrs_2", &EngineDiff::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a);
 }

@@ -2,7 +2,7 @@ import sys
 from typing import Iterable, List, Optional, Tuple
 
 from .models import *
-from .cpp_engine import Engine
+from . import cpp_engine
 
 class InfiniGramEngine:
 
@@ -44,7 +44,7 @@ class InfiniGramEngine:
                 print(f"Error reading bow_ids_path: {e}")
                 raise e
 
-        self.engine = Engine(index_dir, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)
+        self.engine = cpp_engine.Engine(index_dir, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)
 
     def compute_unigram_counts(self, s: int) -> List[int]:
         return self.engine.compute_unigram_counts(s=s)
@@ -163,7 +163,7 @@ class InfiniGramEngine:
 
         result = self.engine.search_docs(input_ids=input_ids, maxnum=maxnum, max_disp_len=max_disp_len)
 
-        documents: List[DocResult] = [{'doc_ix': d.doc_ix, 'doc_len': d.doc_len, 'disp_len': d.disp_len, 'needle_offset': d.needle_offset, 'metadata': d.metadata, 'token_ids': d.token_ids} for d in result.docs] # type: ignore
+        documents: List[DocResult] = [{'doc_ix': d.doc_ix, 'doc_len': d.doc_len, 'disp_len': d.disp_len, 'needle_offset': d.needle_offset, 'metadata': d.metadata, 'token_ids': d.token_ids, 'blocked': d.blocked} for d in result.docs] # type: ignore
         return {'cnt': result.cnt, 'approx': result.approx, 'idxs': result.idxs, 'documents': documents}
 
     def search_docs_cnf(self, cnf: CnfType, maxnum: Optional[int] = None, max_disp_len: Optional[int] = None, max_clause_freq: Optional[int] = None, max_diff_tokens: Optional[int] = None) -> InfiniGramEngineResponse[SearchDocsResponse]:
@@ -188,7 +188,7 @@ class InfiniGramEngine:
 
         result = self.engine.search_docs_cnf(cnf=cnf, maxnum=maxnum, max_disp_len=max_disp_len, max_clause_freq=max_clause_freq, max_diff_tokens=max_diff_tokens)
 
-        documents: List[DocResult] = [{'doc_ix': d.doc_ix, 'doc_len': d.doc_len, 'disp_len': d.disp_len, 'needle_offset': d.needle_offset, 'metadata': d.metadata, 'token_ids': d.token_ids} for d in result.docs]
+        documents: List[DocResult] = [{'doc_ix': d.doc_ix, 'doc_len': d.doc_len, 'disp_len': d.disp_len, 'needle_offset': d.needle_offset, 'metadata': d.metadata, 'token_ids': d.token_ids, 'blocked': d.blocked} for d in result.docs]
         return {'cnt': result.cnt, 'approx': result.approx, 'idxs': result.idxs, 'documents': documents}
 
     def get_doc_by_rank(self, s: int, rank: int, max_disp_len: Optional[int] = None) -> InfiniGramEngineResponse[DocResult]:
@@ -204,7 +204,7 @@ class InfiniGramEngine:
             return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
 
         result = self.engine.get_doc_by_rank(s=s, rank=rank, max_disp_len=max_disp_len)
-        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids}
+        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
 
     def get_docs_by_ranks(self, list_of_s_and_rank: List[Tuple[int, int]], max_disp_len: Optional[int] = None) -> InfiniGramEngineResponse[List[DocResult]]:
         if max_disp_len is None:
@@ -220,7 +220,7 @@ class InfiniGramEngine:
                 return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
 
         results = self.engine.get_docs_by_rank(list_of_s_and_rank=list_of_s_and_rank, max_disp_len=max_disp_len)
-        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids} for result in results]
+        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
 
     def get_doc_by_ptr(self, s: int, ptr: int, max_disp_len: Optional[int] = None) -> InfiniGramEngineResponse[DocResult]:
         if max_disp_len is None:
@@ -235,7 +235,7 @@ class InfiniGramEngine:
             return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
 
         result = self.engine.get_doc_by_ptr(s=s, ptr=ptr, max_disp_len=max_disp_len)
-        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids}
+        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
 
     def get_docs_by_ptrs(self, list_of_s_and_ptr: List[Tuple[int, int]], max_disp_len: Optional[int] = None) -> InfiniGramEngineResponse[List[DocResult]]:
         if max_disp_len is None:
@@ -251,7 +251,7 @@ class InfiniGramEngine:
                 return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
 
         results = self.engine.get_docs_by_ptrs(list_of_s_and_ptr=list_of_s_and_ptr, max_disp_len=max_disp_len)
-        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids} for result in results]
+        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
 
     def get_doc_by_ix(self, doc_ix: int, max_disp_len: Optional[int]=None) -> InfiniGramEngineResponse[DocResult]:
         if max_disp_len is None:
@@ -263,7 +263,7 @@ class InfiniGramEngine:
             return {'error': f'doc_ix must be an integer in range [0, {total_doc_cnt})'}
 
         result = self.engine.get_doc_by_ix(doc_ix=doc_ix, max_disp_len=max_disp_len)
-        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids}
+        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
 
     def get_docs_by_ixs(self, list_of_doc_ix: List[int], max_disp_len: Optional[int]=None) -> InfiniGramEngineResponse[List[DocResult]]:
         if max_disp_len is None:
@@ -276,7 +276,7 @@ class InfiniGramEngine:
                 return {'error': f'doc_ix must be an integer in range [0, {total_doc_cnt})'}
 
         results = self.engine.get_docs_by_ixs(list_of_doc_ix=list_of_doc_ix, max_disp_len=max_disp_len)
-        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids} for result in results]
+        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
 
     def get_doc_by_rank_2(self, s: int, rank: int, needle_len: int, max_ctx_len: int) -> InfiniGramEngineResponse[DocResult]:
         if not (type(needle_len) == int and needle_len >= 0):
@@ -291,7 +291,7 @@ class InfiniGramEngine:
             return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
 
         result = self.engine.get_doc_by_rank_2(s=s, rank=rank, needle_len=needle_len, max_ctx_len=max_ctx_len)
-        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids}
+        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
 
     def get_docs_by_ranks_2(self, requests: List[Tuple[int, int, int, int]]) -> InfiniGramEngineResponse[List[DocResult]]:
         num_shards = self.engine.get_num_shards()
@@ -307,7 +307,7 @@ class InfiniGramEngine:
                 return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
 
         results = self.engine.get_docs_by_ranks_2(requests=requests)
-        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids} for result in results]
+        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
 
     def get_doc_by_ptr_2(self, s: int, ptr: int, needle_len: int, max_ctx_len: int) -> InfiniGramEngineResponse[DocResult]:
         if not (type(needle_len) == int and needle_len >= 0):
@@ -322,7 +322,7 @@ class InfiniGramEngine:
             return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
 
         result = self.engine.get_doc_by_ptr_2(s=s, ptr=ptr, needle_len=needle_len, max_ctx_len=max_ctx_len)
-        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids}
+        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
 
     def get_docs_by_ptrs_2(self, requests: List[Tuple[int, int, int, int]]) -> InfiniGramEngineResponse[List[DocResult]]:
         num_shards = self.engine.get_num_shards()
@@ -338,7 +338,7 @@ class InfiniGramEngine:
                 return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
 
         results = self.engine.get_docs_by_ptrs_2(requests=requests)
-        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids} for result in results]
+        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
 
     def get_doc_by_ix_2(self, doc_ix: int, max_ctx_len: int) -> InfiniGramEngineResponse[DocResult]:
         if not (type(max_ctx_len) == int and max_ctx_len >= 0):
@@ -348,7 +348,7 @@ class InfiniGramEngine:
             return {'error': f'doc_ix must be an integer in range [0, {total_doc_cnt})'}
 
         result = self.engine.get_doc_by_ix_2(doc_ix=doc_ix, max_ctx_len=max_ctx_len)
-        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids}
+        return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
 
     def get_docs_by_ixs_2(self, requests: List[Tuple[int, int]]) -> InfiniGramEngineResponse[List[DocResult]]:
         total_doc_cnt = self.engine.get_total_doc_cnt()
@@ -359,7 +359,7 @@ class InfiniGramEngine:
                 return {'error': f'doc_ix must be an integer in range [0, {total_doc_cnt})'}
 
         results = self.engine.get_docs_by_ixs_2(requests=requests)
-        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids} for result in results]
+        return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
 
     def get_total_doc_cnt(self) -> int:
         return self.engine.get_total_doc_cnt()
@@ -389,9 +389,74 @@ class InfiniGramEngine:
             ]
         }
 
-    def attribute_2(self, input_ids: QueryIdsType, delim_ids: Iterable[int], min_len: int, max_cnt: int, max_docs: int, max_disp_len: int) -> Attribution2Response:
-        result = self.engine.attribute_2(input_ids=input_ids, delim_ids=delim_ids, min_len=min_len, max_cnt=max_cnt, max_docs=max_docs, max_disp_len=max_disp_len)
-        return {
-            'spans': result.spans,
-            'docs': [{'doc_ix': d.doc_ix, 'doc_len': d.doc_len, 'disp_len': d.disp_len, 'disp_offset': d.disp_offset, 'metadata': d.metadata, 'token_ids': d.token_ids, 'token_offset_span_pairs': d.token_offset_span_pairs, 'total_matched_len': d.total_matched_len} for d in result.docs],
-        }
+class InfiniGramEngineDiff(InfiniGramEngine):
+
+    def __init__(self, index_dir: Iterable[str] | str, index_dir_diff: Iterable[str] | str, eos_token_id: int,
+                 load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
+                 bow_ids_path: str = None, precompute_unigram_logprobs: bool = False,
+                 max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=1000,
+                 ) -> None:
+
+        assert sys.byteorder == 'little', 'This code is designed to run on little-endian machines only!'
+
+        if type(index_dir) == str:
+            index_dir = [index_dir]
+        assert type(index_dir) == list and all(type(d) == str for d in index_dir)
+        if type(index_dir_diff) == str:
+            index_dir_diff = [index_dir_diff]
+        assert type(index_dir_diff) == list and all(type(d) == str for d in index_dir_diff)
+        assert type(eos_token_id) == int and 0 <= eos_token_id and eos_token_id < 65535
+        assert type(load_to_ram) == bool
+        assert type(ds_prefetch_depth) == int and ds_prefetch_depth >= 0
+        assert type(sa_prefetch_depth) == int and sa_prefetch_depth >= ds_prefetch_depth
+        assert type(od_prefetch_depth) == int and od_prefetch_depth >= 0
+        assert type(max_support) == int and max_support > 0
+        assert type(max_clause_freq) == int and max_clause_freq > 0
+        assert type(max_diff_tokens) == int and max_diff_tokens > 0
+        assert type(maxnum) == int and maxnum > 0
+        assert type(max_disp_len) == int and max_disp_len > 0
+
+        self.max_support = max_support
+        self.max_clause_freq = max_clause_freq
+        self.max_diff_tokens = max_diff_tokens
+        self.maxnum = maxnum
+        self.max_disp_len = max_disp_len
+
+        bow_ids = set()
+        if bow_ids_path is not None:
+            try:
+                with open(bow_ids_path, 'r') as f:
+                    for line in f:
+                        bow_ids.add(int(line.strip()))
+            except Exception as e:
+                print(f"Error reading bow_ids_path: {e}")
+                raise e
+
+        self.engine = cpp_engine.EngineDiff(index_dir, index_dir_diff, eos_token_id, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)
+
+    def get_docs_by_ptrs_2(self, requests: List[GetDocsByPtrsRequestWithTakedown]) -> InfiniGramEngineResponse[List[List[DocResult]]]:
+        num_shards = self.engine.get_num_shards()
+        for request in requests:
+            needle_len = request['needle_len']
+            max_ctx_len = request['max_ctx_len']
+            if not (type(needle_len) == int and needle_len >= 0):
+                return {'error': 'needle_len must be a non-negative integer'}
+            if not (type(max_ctx_len) == int and max_ctx_len >= 0):
+                return {'error': 'max_ctx_len must be a non-negative integer'}
+            for doc in request['docs']:
+                s = doc['s']
+                ptr = doc['ptr']
+                if not (type(s) == int and 0 <= s and s < num_shards):
+                    return {'error': f's must be an integer in range [0, {num_shards})'}
+                ds_size = self.engine.get_ds_size(s=s)
+                if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % 2 == 0):
+                    return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
+
+        resultss = self.engine.get_docs_by_ptrs_2(requests=[
+            (
+                [(doc['s'], doc['ptr']) for doc in request['docs']],
+                request['span_ids'],
+                request['needle_len'],
+                request['max_ctx_len'],
+            ) for request in requests])
+        return [[{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results] for results in resultss]
