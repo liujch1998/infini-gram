@@ -47,7 +47,7 @@ class CustomInstallCommand(install):
 
 setup(
     name='infini_gram',
-    version='2.2.4',
+    version='2.3.0',
     author='Jiacheng Liu',
     author_email='liujc@cs.washington.edu',
     description='A Python package for infini-gram',
@@ -73,7 +73,7 @@ setup(
     # ],
     # license_files=['LICENSE'],
     # include_package_data=True,
-    license='UW Academic Software License',
+    license='Apache 2.0',
     python_requires='>=3.11',
     install_requires=['tqdm'],
 )

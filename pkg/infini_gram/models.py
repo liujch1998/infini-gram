@@ -53,6 +53,7 @@ class DocResult(TypedDict):
     needle_offset: int
     metadata: str
     token_ids: List[int]
+    blocked: bool = False
 
 class SearchDocsResponse(TypedDict):
     cnt: int
@@ -78,16 +79,8 @@ class AttributionSpan(TypedDict):
 class AttributionResponse(TypedDict):
     spans: List[AttributionSpan]
 
-class Attribution2Doc(TypedDict):
-    doc_ix: int
-    doc_len: int
-    disp_len: int
-    disp_offset: int
-    metadata: str
-    token_ids: List[int]
-    token_offset_span_pairs: List[Tuple[int, Tuple[int, int]]]
-    total_matched_len: int
-
-class Attribution2Response(TypedDict):
-    spans: List[Any]
-    docs: List[Attribution2Doc]
+class GetDocsByPtrsRequestWithTakedown(TypedDict):
+    docs: List[AttributionDoc]
+    span_ids: List[int]
+    needle_len: int
+    max_ctx_len: int
