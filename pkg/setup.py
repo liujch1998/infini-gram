@@ -73,7 +73,7 @@ setup(
     # ],
     # license_files=['LICENSE'],
     # include_package_data=True,
-    license='UW Academic Software License',
+    license='Apache 2.0',
     python_requires='>=3.11',
     install_requires=['tqdm'],
 )

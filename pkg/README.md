@@ -10,12 +10,9 @@ To learn more about infini-gram:
 
 ## License
 
-This package is licensed under the [UW Academic Software License](https://infini-gram.io/LICENSE).
-Use by universities and non-profit institutions is allowed.
-Commercial use is not allowed.
-A copy of the license is enclosed with the package distribution.
+This package is licensed under Apache 2.0.
 
-The suffix array implementation is adapted from [Lee et al. (2021)](https://github.com/google-research/deduplicate-text-datasets), which is distributed under Apache-2.0.
+The suffix array implementation is adapted from [Lee et al. (2021)](https://github.com/google-research/deduplicate-text-datasets), which is licensed under Apache 2.0.
 
 ## Citation
 
