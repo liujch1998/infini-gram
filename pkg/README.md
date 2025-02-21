@@ -25,3 +25,6 @@ If you find infini-gram useful, please kindly cite our paper:
   year={2024}
 }
 ```
+
+## Building the package
+`python -m pip wheel ./pkg --wheel-dir=./build/cp311-macosx_arm64/built_wheel --no-deps`

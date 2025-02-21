@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - 'master'
-      - 'move-attribution'
+      - 'add-osx-building'
 
 jobs:
   build_wheels:
@@ -13,21 +13,17 @@ jobs:
     strategy:
       matrix:
         # macos-13 is an intel runner, macos-14 is apple silicon
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-13, macos-14]
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel==2.22.0
-
       - name: Build wheels
-        run: cd pkg/; python -m cibuildwheel --output-dir wheelhouse
+        uses: pypa/cibuildwheel@v2.22.0
+        with:
+          package-dir: ./pkg
+          output-dir: wheelhouse
 
       - uses: actions/upload-artifact@v4
         with:
           name: infini-gram-${{ matrix.os }}-${{ strategy.job-index }}
-          path: ./pkg/wheelhouse/*.whl
+          path: ./wheelhouse/*.whl
