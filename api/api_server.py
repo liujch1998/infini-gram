@@ -332,7 +332,7 @@ def query():
     log.flush()
 
     index = data['corpus'] if 'corpus' in data else (data['index'] if 'index' in data else None)
-    if 'dolma-' in index and DOLMA_API_URL is not None:
+    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2']) and DOLMA_API_URL is not None:
         try:
             response = requests.post(DOLMA_API_URL, json=data, timeout=10)
         except requests.exceptions.Timeout:
