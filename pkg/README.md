@@ -7,12 +7,8 @@ To learn more about infini-gram:
 * Project Home: <https://infini-gram.io>
 * Web Interface: <https://infini-gram.io/demo>
 * API Endpoint: <https://infini-gram.io/api_doc>
-
-## License
-
-This package is licensed under Apache 2.0.
-
-The suffix array implementation is adapted from [Lee et al. (2021)](https://github.com/google-research/deduplicate-text-datasets), which is licensed under Apache 2.0.
+* Python Package: <https://pypi.org/project/infini-gram>
+* Code: <https://github.com/liujch1998/infini-gram>
 
 ## Citation
 
@@ -25,6 +21,3 @@ If you find infini-gram useful, please kindly cite our paper:
   year={2024}
 }
 ```
-
-## Building the package
-`python -m pip wheel ./pkg --wheel-dir=./build/cp311-macosx_arm64/built_wheel --no-deps`

@@ -2,10 +2,12 @@
 
 This repo hosts the code of the [infini-gram search engine](https://infini-gram.io/), which is described in this paper: [Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens](https://arxiv.org/abs/2401.17377).
 
+To learn more about infini-gram:
 * Paper: <https://arxiv.org/abs/2401.17377>
-* Project page: <https://infini-gram.io>
-* API: <https://infini-gram.io/api_doc>
-* Demo: <https://hf.co/spaces/liujch1998/infini-gram>
+* Project Home: <https://infini-gram.io>
+* Web Interface: <https://infini-gram.io/demo>
+* API Endpoint: <https://infini-gram.io/api_doc>
+* Python Package: <https://pypi.org/project/infini-gram>
 * Code: <https://github.com/liujch1998/infini-gram>
 
 ## Overview
@@ -17,28 +19,10 @@ Infini-gram is powered by an index based on suffix arrays.
 This repo contains everything you might need to build an infini-gram index for the corpus of your choice, and to perform inference on this index.
 
 Depending on your use case and needs, there are several options for you:
-1. If you'd like to explore infini-gram or query in small volume, our [HF demo](https://hf.co/spaces/liujch1998/infini-gram) is the best place to start.
+1. If you'd like to explore infini-gram or query in small volume, our [Web Interface](https://hf.co/spaces/liujch1998/infini-gram) is the best place to start.
 2. If you'd like to programmatically query infini-gram in moderate to large volume, we offer a free and easy-to-use API endpoint, please check out the [API documentation](https://infini-gram.io/api_doc).
-3. If you are querying one of the indexes supported in the demo or the API, but need to customize the inference engine (e.g., perhaps you want to retrieve all documents containing a query string, rather than a random set of 10 documents), please head to the `inference/` folder. The README there will guide you to acquire a pre-built index and set up the inference service.
-4. If you'd like to build an infini-gram index for a text corpus of your choice, please head to the `train/` folder and follow the README there. After you have built the index, you may serve it using the inference code.
-
-## Pre-built Indexes
-
-Here are the indexes we serve in the demo and the API endpoint, and some of their statistics:
-
-| Name | Documents | Tokens | Storage | Corpus | Tokenizer |
-| --- | ---: | ---: | ---: | --- | --- |
-| `v4_rpj_llama_s4` | 931,361,530 | 1,385,942,948,192 | 8.9TiB | RedPajama | Llama-2 |
-| `v4_piletrain_llama` | 210,607,728 | 383,299,322,520 | 2.5TiB | Pile-train | Llama-2 |
-| `v4_c4train_llama` | 364,868,892 | 198,079,554,945 | 1.3TiB | C4-train | Llama-2 |
-| `v4_pileval_llama` | 214,670 | 393,769,120 | 2.3GiB | Pile-val | Llama-2 |
-| `v4_pileval_gpt2` | 214,670 | 383,326,404 | 2.2GiB | Pile-val | GPT-2 |
-| `v4_dolmasample_olmo` | 13,095,416 | 8,039,098,124 | 53GiB | Dolma-sample | OLMo |
-
-You may download / restore the indexes here:
-* `v4_rpj_llama_s4`: <https://us-east-1.console.aws.amazon.com/ec2/home?region=us-east-1#SnapshotDetails:snapshotId=snap-0fb56adcc3c1a1ca7>
-* `v4_piletrain_llama`: <https://us-east-1.console.aws.amazon.com/ec2/home?region=us-east-1#SnapshotDetails:snapshotId=snap-0d3937dcbb635c119>
-* `v4_c4train_llama`: <https://us-east-1.console.aws.amazon.com/ec2/home?region=us-east-1#SnapshotDetails:snapshotId=snap-0dabdf10bf6930394>
+3. If you'd like to serve the inference engine yourself on an existing index, or build index on a new dataset, you can do so via our [Python Package](https://pypi.org/project/infini-gram).
+4. If you'd like to customize the indexing or the inference engine, or you're simply curious about how things work, you're welcome to dive into this repo and mess with it!
 
 ## Structure of the Index
 

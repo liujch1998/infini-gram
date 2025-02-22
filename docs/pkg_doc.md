@@ -477,15 +477,6 @@ Use `python -m infini_gram.indexing -h` for additional help on using this progra
 ---
 <br/>
 
-## License
-
-This package is licensed under Apache 2.0.
-
-The suffix array implementation is adapted from [Lee et al. (2021)](https://github.com/google-research/deduplicate-text-datasets), which is distributed under Apache 2.0.
-
----
-<br/>
-
 ## Acknowledgements
 
 We would like to thank Zihao Ye for sharing his advice on building and distributing python packages.

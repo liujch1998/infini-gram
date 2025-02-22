@@ -2,6 +2,7 @@
 # twine upload --repository testpypi dist/*
 
 # cibuildwheel --output-dir wheelhouse
+# python -m pip wheel ./pkg --wheel-dir=./build/cp311-macosx_arm64/built_wheel --no-deps
 # twine upload --repository testpypi wheelhouse/*
 # twine upload wheelhouse/*
 
