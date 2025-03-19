@@ -1,4 +1,4 @@
-// c++ -std=c++17 -O3 -shared -fPIC $(python3 -m pybind11 --includes) infini_gram/cpp_engine.cpp -o infini_gram/cpp_engine$(python3-config --extension-suffix)
+// c++ -std=c++20 -O3 -shared -fPIC $(python3 -m pybind11 --includes) infini_gram/cpp_engine.cpp -o infini_gram/cpp_engine$(python3-config --extension-suffix)
 
 #include "cpp_engine.h"
 #include <pybind11/pybind11.h>

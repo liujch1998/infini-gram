@@ -287,22 +287,19 @@ public:
 
         vector<U64> unigram_counts(65536, 0);
         for (U16 j = 0; j < 256; j++) {
-            vector<U64> start_thread_outputs(256);
-            vector<U64> end_thread_outputs(256);
+            vector<pair<U64, U64>> segment_by_token(256);
             vector<thread> threads;
             for (U16 k = 0; k < 256; k++) {
                 U16 i = j * 256 + k;
                 threads.emplace_back(&Engine::_find_thread, this, s,
-                    &input_ids, input_buf + i * num_bytes, num_bytes, hint_segment, true, &start_thread_outputs[k]);
-                threads.emplace_back(&Engine::_find_thread, this, s,
-                    &input_ids, input_buf + i * num_bytes, num_bytes, hint_segment, false, &end_thread_outputs[k]);
+                    &input_ids, input_buf + i * num_bytes, num_bytes, hint_segment, &segment_by_token[k]);
             }
             for (auto &thread : threads) {
                 thread.join();
             }
             for (U16 k = 0; k < 256; k++) {
-                assert (start_thread_outputs[k] <= end_thread_outputs[k]);
-                unigram_counts[j * 256 + k] = end_thread_outputs[k] - start_thread_outputs[k];
+                assert (segment_by_token[k].first <= segment_by_token[k].second);
+                unigram_counts[j * 256 + k] = segment_by_token[k].second - segment_by_token[k].first;
             }
         }
 
@@ -325,25 +322,20 @@ public:
         const U8 *input_buf = reinterpret_cast<const U8*>(input_ids.data());
         U64 num_bytes = input_ids.size() * sizeof(U16);
 
-        vector<U64> start_thread_outputs(_num_shards);
-        vector<U64> end_thread_outputs(_num_shards);
+        vector<pair<U64, U64>> segment_by_shard(_num_shards);
         vector<thread> threads;
         for (size_t s = 0; s < _num_shards; s++) {
             threads.emplace_back(&Engine::_find_thread, this, s,
-                &input_ids, input_buf, num_bytes, hint_segment_by_shard[s], true, &start_thread_outputs[s]);
-            threads.emplace_back(&Engine::_find_thread, this, s,
-                &input_ids, input_buf, num_bytes, hint_segment_by_shard[s], false, &end_thread_outputs[s]);
+                &input_ids, input_buf, num_bytes, hint_segment_by_shard[s], &segment_by_shard[s]);
         }
         for (auto &thread : threads) {
             thread.join();
         }
 
         U64 cnt = 0;
-        vector<pair<U64, U64>> segment_by_shard;
         for (size_t s = 0; s < _num_shards; s++) {
-            assert (start_thread_outputs[s] <= end_thread_outputs[s]);
-            cnt += end_thread_outputs[s] - start_thread_outputs[s];
-            segment_by_shard.push_back({start_thread_outputs[s], end_thread_outputs[s]});
+            assert (segment_by_shard[s].first <= segment_by_shard[s].second);
+            cnt += segment_by_shard[s].second - segment_by_shard[s].first;
         }
 
         return FindResult{ .cnt = cnt, .segment_by_shard = segment_by_shard, };
@@ -355,48 +347,71 @@ public:
         const U8* const input_buf,
         const U64 num_bytes,
         const pair<U64, U64> hint_segment,
-        const bool finding_start,
-        U64* const thread_output) const {
+        pair<U64, U64>* const out_segment) const {
 
         const auto &shard = _shards[s];
 
         if (input_ids->empty()) {
-            *thread_output = finding_start ? 0 : shard.tok_cnt;
+            *out_segment = {0, shard.tok_cnt};
             return;
         }
 
-        U64 lo = hint_segment.first - 1, hi = hint_segment.second;
-
-        if (finding_start) { // Search for the leftmost sa index that IS >= the prompt
-            while (hi - lo > 1) {
-                _prefetch_find(shard, num_bytes, lo, hi);
-                U64 mi = (lo + hi) >> 1;
-                U64 ptr = _convert_rank_to_ptr(shard, mi);
-                bool less = std::lexicographical_compare(
-                    shard.ds + ptr, shard.ds + min(ptr + num_bytes, shard.ds_size),
-                    input_buf, input_buf + num_bytes);
-                if (less) {
-                    lo = mi;
-                } else {
-                    hi = mi;
-                }
-            }
-        } else { // Search for the leftmost sa index that IS > the prompt
-            while (hi - lo > 1) {
-                _prefetch_find(shard, num_bytes, lo, hi);
-                U64 mi = (lo + hi) >> 1;
-                U64 ptr = _convert_rank_to_ptr(shard, mi);
-                bool less = std::lexicographical_compare(
-                    input_buf, input_buf + num_bytes,
-                    shard.ds + ptr, shard.ds + min(ptr + num_bytes, shard.ds_size));
-                if (!less) {
-                    lo = mi;
-                } else {
-                    hi = mi;
-                }
+        U64 lo = hint_segment.first, hi = hint_segment.second;
+        U64 mi;
+        while (lo < hi) {
+            _prefetch_find_2(shard, num_bytes, lo, hi);
+            mi = (lo + hi - 1) >> 1;
+            U64 ptr = _convert_rank_to_ptr(shard, mi);
+            auto o = lexicographical_compare_three_way(
+                shard.ds + ptr, shard.ds + min(ptr + num_bytes, shard.ds_size),
+                input_buf, input_buf + num_bytes);
+            if (o == strong_ordering::less) {
+                lo = mi + 1;
+            } else if (o == strong_ordering::greater) {
+                hi = mi;
+            } else { // o == strong_ordering::equal
+                break;
             }
         }
-        *thread_output = hi;
+        if (lo == hi) {
+            out_segment->first = lo;
+            out_segment->second = lo;
+            return;
+        }
+
+        // search left boundary in (lo-1, mi], which should be >= query
+        U64 l = lo - 1, r = mi; // l is always < query, r is always >= query
+        while (r - l > 1) {
+            _prefetch_find(shard, num_bytes, l, r);
+            U64 m = (l + r) >> 1;
+            U64 ptr = _convert_rank_to_ptr(shard, m);
+            bool less = lexicographical_compare(
+                shard.ds + ptr, shard.ds + min(ptr + num_bytes, shard.ds_size),
+                input_buf, input_buf + num_bytes);
+            if (less) {
+                l = m;
+            } else {
+                r = m;
+            }
+        }
+        out_segment->first = r;
+
+        // search right boundary in (mi, hi], which should be > query
+        l = mi, r = hi; // l is always <= query, r is always > query
+        while (r - l > 1) {
+            _prefetch_find(shard, num_bytes, l, r);
+            U64 m = (l + r) >> 1;
+            U64 ptr = _convert_rank_to_ptr(shard, m);
+            bool less = lexicographical_compare(
+                input_buf, input_buf + num_bytes,
+                shard.ds + ptr, shard.ds + min(ptr + num_bytes, shard.ds_size));
+            if (less) {
+                r = m;
+            } else {
+                l = m;
+            }
+        }
+        out_segment->second = r;
     }
 
     void find_inplace(const vector<U16>* const input_ids, FindResult* const thread_output) const {
@@ -1207,16 +1222,15 @@ public:
 
         const U8 *input_buf = reinterpret_cast<const U8*>(input_ids->data());
         U64 num_bytes = input_ids->size() * sizeof(U16);
-        U64 start, end;
+        pair<U64, U64> segment;
         pair<U64, U64> hint_segment = {0, shard.tok_cnt};
         vector<thread> threads;
         threads.emplace_back(&Engine::_find_thread, this,
-            s, input_ids, input_buf, num_bytes, hint_segment, true, &start);
-        threads.emplace_back(&Engine::_find_thread, this,
-            s, input_ids, input_buf, num_bytes, hint_segment, false, &end);
+            s, input_ids, input_buf, num_bytes, hint_segment, &segment);
         for (auto &thread : threads) {
             thread.join();
         }
+        U64 start = segment.first, end = segment.second;
 
         if (start != end) {
             *out_longest_prefix_len = input_ids->size();
@@ -1407,6 +1421,21 @@ private:
         if (depth == _sa_prefetch_depth) return;
         _prefetch_find(shard, num_bytes, lo, mi, depth + 1);
         _prefetch_find(shard, num_bytes, mi, hi, depth + 1);
+    }
+
+    void _prefetch_find_2(const DatastoreShard &shard, const U64 num_bytes, const U64 lo, const U64 hi, const size_t depth = 0) const {
+        U64 mi = (lo + hi - 1) >> 1;
+        if (mi >= shard.tok_cnt) return; // This might happen when lo = 0 and hi = 0
+        if (_ds_prefetch_depth != 0 && depth == _ds_prefetch_depth) { // fetch ds
+            U64 ptr = _convert_rank_to_ptr(shard, mi);
+            madvise(shard.ds + ptr - ptr % PAGESIZE, num_bytes + ptr % PAGESIZE, MADV_WILLNEED);
+        }
+        if (_ds_prefetch_depth != _sa_prefetch_depth && depth == _sa_prefetch_depth) { // fetch sa
+            madvise(shard.sa + mi * shard.ptr_size - mi * shard.ptr_size % PAGESIZE, shard.ptr_size + mi * shard.ptr_size % PAGESIZE, MADV_WILLNEED);
+        }
+        if (depth == _sa_prefetch_depth) return;
+        _prefetch_find_2(shard, num_bytes, lo, mi, depth + 1);
+        _prefetch_find_2(shard, num_bytes, mi + 1, hi, depth + 1);
     }
 
     void _prefetch_ntd(const DatastoreShard &shard, const U64 num_bytes, const U64 lo, const U64 hi, const size_t depth = 0) const {

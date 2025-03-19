@@ -1,4 +1,4 @@
-// g++ -std=c++17 -O3 -pthread test/cpp_engine_test.cpp -o test/cpp_engine_test && ./test/cpp_engine_test
+// g++ -std=c++20 -O3 -pthread test/cpp_engine_test.cpp -o test/cpp_engine_test && ./test/cpp_engine_test
 
 #include "../infini_gram/cpp_engine.h"
 
