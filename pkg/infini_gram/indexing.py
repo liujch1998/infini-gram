@@ -1,4 +1,5 @@
 import argparse
+from collections import defaultdict
 import glob
 import gzip
 import json
@@ -88,7 +89,7 @@ def tokenize(args):
         om_fouts = [open(om_path, 'wb') for om_path in om_paths]
     if args.add_unigram:
         ug_fouts = [open(ug_path, 'w') for ug_path in ug_paths]
-        unigram_counts = [[0 for _ in 65536] for ug_path in ug_paths]
+        unigram_counts = [defaultdict(int) for ug_path in ug_paths]
     with mp.get_context('fork').Pool(args.cpus) as p:
         ods = [0 for _ in od_fouts]
         if args.add_metadata:
@@ -112,7 +113,7 @@ def tokenize(args):
                         om_fouts[j].write(np.array([oms[j]], dtype=np.uint64).view(np.uint8).tobytes())
                         oms[j] += len(mt)
                     if args.add_unigram:
-                        token_ids = np.frombuffer(byte_arr, dtype=np.uint8).view(np.uint16)
+                        token_ids = np.frombuffer(content, dtype=np.uint8).view(np.uint16)
                         for token_id in token_ids:
                             unigram_counts[j][token_id] += 1
             del lines
@@ -128,40 +129,43 @@ def tokenize(args):
             om_fout.close()
     if args.add_unigram:
         for j, ug_fout in enumerate(ug_fouts):
-            for token_id, count in enumerate(unigram_counts[j]):
-                ug_fout.write(f'{count}\n')
+            for token_id, count in sorted(unigram_counts[j].items()):
+                ug_fout.write(f'{token_id} {count}\n')
             ug_fout.close()
 
 def build_sa(args):
 
     ds_paths = [os.path.join(args.save_dir, f'tokenized.{i}') for i in range(args.worker_id, args.shards, args.workers)]
+
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-    print('Step 2 (build suffix array): starting ...')
-
     for t, ds_path in enumerate(ds_paths):
+        print(f'Shard {t} / {len(ds_paths)}', flush=True)
+
         sa_path = ds_path.replace('tokenized', 'table')
         if os.path.exists(sa_path):
-            print(f'Shard {t} / {len(ds_paths)}: Skipped. Table already exists.')
+            print(f'Step 2 (build_sa): Skipped. File already exists.', flush=True)
             continue
 
+        print('Step 2 (build_sa): Starting ...', flush=True)
         start_time_all = time.time()
 
         # -------- Step 2.1 (make-part) -------- #
 
-        print(f'Shard {t} / {len(ds_paths)}: make-part ...')
+        print(f'\tStep 2.1 (make-part): Starting ...', flush=True)
         start_time = time.time()
 
-        tok_size = os.path.getsize(ds_path)
+        ds_size = os.path.getsize(ds_path)
+        ratio = int(np.ceil(np.log2(ds_size) / 8))
         mem_bytes = args.mem * 1024**3
         num_job_batches = 1
-        while num_job_batches * (mem_bytes // 8) < tok_size:
+        while num_job_batches * (mem_bytes // 8) < ds_size:
             num_job_batches *= 2
         parallel_jobs = args.cpus
         total_jobs = num_job_batches * parallel_jobs
-        print(f'Using {num_job_batches} batches of {parallel_jobs} jobs each, for a total of {total_jobs} jobs.')
+        print(f'Using {num_job_batches} batches of {parallel_jobs} jobs each, for a total of {total_jobs} jobs.', flush=True)
 
-        S = tok_size // total_jobs
+        S = ds_size // total_jobs
         # Make sure that parts contain whole tokens (2 bytes)
         if S % 2 == 1:
             S += 1
@@ -170,70 +174,61 @@ def build_sa(args):
         shutil.rmtree(parts_dir, ignore_errors=True)
         os.makedirs(parts_dir)
 
-        ranges, files = [], []
         for batch_start in tqdm(list(range(0, total_jobs, parallel_jobs))):
             batch_end = min(batch_start+parallel_jobs, total_jobs)
-            batch_ranges, batch_files = [], []
+            batch_ranges = []
             for i in range(batch_start, batch_end):
-                s, e = i*S, min((i+1)*S+HACK, tok_size)
+                s, e = i*S, min((i+1)*S+HACK, ds_size)
                 batch_ranges.append((s, e))
-                batch_files.append(os.path.join(parts_dir, f'{s}-{e}'))
-            ranges += batch_ranges
-            files += batch_files
-            wait = []
+            pipes = []
             for (s, e) in batch_ranges:
-                cmd = f'./rust_indexing make-part --data-file {ds_path} --parts-dir {parts_dir} --start-byte {s} --end-byte {e}'
-                wait.append(os.popen(cmd))
-            [x.read() for x in wait]
+                pipes.append(os.popen(f'./rust_indexing make-part --data-file {ds_path} --parts-dir {parts_dir} --start-byte {s} --end-byte {e} --ratio {ratio}'))
+            [pipe.read() for pipe in pipes]
+            if any([pipe.close() is not None for pipe in pipes]):
+                print('\tStep 2.1 (make-part): Something went wrong', flush=True)
+                exit(1)
 
         end_time = time.time()
-        print(f'Shard {t} / {len(ds_paths)}: make-part done. Took {end_time-start_time:.2f} seconds')
+        print(f'\tStep 2.1 (make-part): Done. Took {end_time-start_time:.2f} seconds', flush=True)
 
         # -------- Step 2.2 (merge) -------- #
 
-        print(f'Shard {t} / {len(ds_paths)}: merge ...')
+        print(f'\tStep 2.2 (merge): Starting ...', flush=True)
         start_time = time.time()
 
         merged_dir = os.path.join(args.temp_dir, f'merged-{args.worker_id}')
         shutil.rmtree(merged_dir, ignore_errors=True)
         os.makedirs(merged_dir)
 
-        cmd = f'./rust_indexing merge --merged-dir {merged_dir} --suffix-path {" --suffix-path ".join(files)} --num-threads {args.cpus} --hacksize {HACK}'
-        pipe = os.popen(cmd)
-        output = pipe.read()
+        pipe = os.popen(f'./rust_indexing merge --data-file {ds_path} --parts-dir {parts_dir} --merged-dir {merged_dir} --num-threads {args.cpus} --hacksize {HACK} --ratio {ratio}')
+        pipe.read()
         if pipe.close() is not None:
-            print('Something went wrong with merging.')
+            print('\tStep 2.2 (merge): Something went wrong', flush=True)
             exit(1)
 
         shutil.rmtree(parts_dir)
 
         end_time = time.time()
-        print(f'Shard {t} / {len(ds_paths)}: merge done. Took {end_time-start_time:.2f} seconds')
+        print(f'\tStep 2.2 (merge): Done. Took {end_time-start_time:.2f} seconds', flush=True)
 
         # -------- Step 2.3 (concat) -------- #
 
-        print(f'Shard {t} / {len(ds_paths)}: concat ...')
+        print(f'\tStep 2.3 (concat): Starting ...', flush=True)
         start_time = time.time()
 
-        os.popen(f'cat {merged_dir}/* > {sa_path}').read()
+        pipe = os.popen(f'./rust_indexing concat --data-file {ds_path} --merged-dir {merged_dir} --merged-file {sa_path} --num-threads {args.cpus} --ratio {ratio}')
+        pipe.read()
+        if pipe.close() is not None:
+            print('\tStep 2.3 (concat): Something went wrong', flush=True)
+            exit(1)
+
         shutil.rmtree(merged_dir)
 
         end_time = time.time()
-        print(f'Shard {t} / {len(ds_paths)}: concat done. Took {end_time-start_time:.2f} seconds')
-
-        # -------- Step 2.4 (verify) -------- #
-
-        if not os.path.exists(sa_path):
-            print('Failed to create table')
-            exit(1)
-
-        table_size = os.path.getsize(sa_path)
-        if table_size % (tok_size // 2) != 0:
-            print('File size is wrong')
-            exit(1)
+        print(f'\tStep 2.3 (concat): Done. Took {end_time-start_time:.2f} seconds', flush=True)
 
         end_time_all = time.time()
-        print(f'Shard {t} / {len(ds_paths)}: Done. Took {end_time_all-start_time_all:.2f} seconds')
+        print(f'Step 2 (build_sa): Done. Took {end_time_all-start_time_all:.2f} seconds', flush=True)
 
 def main():
 
