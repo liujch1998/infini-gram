@@ -56,6 +56,7 @@ def tokenize(args):
     od_paths = [os.path.join(args.save_dir, f'offset.{i}') for i in range(args.worker_id, args.shards, args.workers)]
     mt_paths = [os.path.join(args.save_dir, f'metadata.{i}') for i in range(args.worker_id, args.shards, args.workers)]
     om_paths = [os.path.join(args.save_dir, f'metaoff.{i}') for i in range(args.worker_id, args.shards, args.workers)]
+    ug_paths = [os.path.join(args.save_dir, f'unigram.{i}') for i in range(args.worker_id, args.shards, args.workers)]
     if all([os.path.exists(ds_path) for ds_path in ds_paths]) \
         and all([os.path.exists(od_path) for od_path in od_paths]):
         print('Step 1 (tokenize): Skipped. All tokenized files already exist.')
@@ -85,6 +86,9 @@ def tokenize(args):
     if args.add_metadata:
         mt_fouts = [open(mt_path, 'w') for mt_path in mt_paths]
         om_fouts = [open(om_path, 'wb') for om_path in om_paths]
+    if args.add_unigram:
+        ug_fouts = [open(ug_path, 'w') for ug_path in ug_paths]
+        unigram_counts = [[0 for _ in 65536] for ug_path in ug_paths]
     with mp.get_context('fork').Pool(args.cpus) as p:
         ods = [0 for _ in od_fouts]
         if args.add_metadata:
@@ -107,6 +111,10 @@ def tokenize(args):
                         mt_fouts[j].write(mt)
                         om_fouts[j].write(np.array([oms[j]], dtype=np.uint64).view(np.uint8).tobytes())
                         oms[j] += len(mt)
+                    if args.add_unigram:
+                        token_ids = np.frombuffer(byte_arr, dtype=np.uint8).view(np.uint16)
+                        for token_id in token_ids:
+                            unigram_counts[j][token_id] += 1
             del lines
 
     for ds_fout in ds_fouts:
@@ -118,6 +126,11 @@ def tokenize(args):
             mt_fout.close()
         for om_fout in om_fouts:
             om_fout.close()
+    if args.add_unigram:
+        for j, ug_fout in enumerate(ug_fouts):
+            for token_id, count in enumerate(unigram_counts[j]):
+                ug_fout.write(f'{count}\n')
+            ug_fout.close()
 
 def build_sa(args):
 
@@ -237,6 +250,7 @@ def main():
     parser.add_argument('--workers', type=int, default=1, help='Total number of workers. Must be a divisor of shards.')
     parser.add_argument('--worker_id', type=int, default=0, help='The worker ID of this process. Must be in range [0, workers).')
     parser.add_argument('--add_metadata', default=False, action='store_true', help='Whether to store document metadata in the index.')
+    parser.add_argument('--add_unigram', default=False, action='store_true', help='Whether to precompute unigram counts.')
     parser.add_argument('--ulimit', type=int, default=1048576, help='Maximum number of open files allowed.')
     args = parser.parse_args()
     if args.temp_dir is None:
