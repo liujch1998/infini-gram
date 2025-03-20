@@ -15,6 +15,7 @@ from tqdm import tqdm
 HACK = 100000
 
 tokenizer = None
+token_dtype = None
 
 def load_file(path):
     if path.endswith('.gz'):
@@ -37,19 +38,15 @@ def load_file(path):
     return lines
 
 def tok(line):
-    global tokenizer
+    global tokenizer, token_dtype
     metadata = json.loads(line.strip('\n'))
-    tok_text = tokenizer.encode(metadata['text'])
+    if tokenizer is None:
+        byte_arr = metadata['text'].encode('utf-8')
+    else:
+        text = tokenizer.encode(metadata['text'])
+        byte_arr = np.array(text, dtype=token_dtype).view(np.uint8).tobytes()
     del metadata['text']
-    byte_arr = np.array(tok_text, dtype=np.uint16).view(np.uint8).tobytes()
     return byte_arr, metadata
-# def extract_text(line):
-#     js = json.loads(line.strip('\n'))
-#     text = js['text']
-#     ID = js["id"] if "id" in js else ""
-#     return text, ID
-# def convert_to_bytes(tok_text):
-#     return np.array(tok_text, dtype=np.uint16).view(np.uint8).tobytes()
 
 def tokenize(args):
 
@@ -67,8 +64,10 @@ def tokenize(args):
 
     import transformers
     transformers.utils.logging.set_verbosity(40) # suppress warnings
-    global tokenizer
-    if args.tokenizer == 'gpt2':
+    global tokenizer, token_dtype
+    if args.tokenizer is None:
+        tokenizer = None
+    elif args.tokenizer == 'gpt2':
         tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2', use_fast=False, add_bos_token=False, add_eos_token=False)
     elif args.tokenizer == 'llama':
         tokenizer = transformers.AutoTokenizer.from_pretrained('meta-llama/Llama-2-7b-hf', token=os.environ.get('HF_TOKEN'), use_fast=False, add_bos_token=False, add_eos_token=False) # The fast tokenizer seems unbearably slow ...
@@ -113,7 +112,7 @@ def tokenize(args):
                         om_fouts[j].write(np.array([oms[j]], dtype=np.uint64).view(np.uint8).tobytes())
                         oms[j] += len(mt)
                     if args.add_unigram:
-                        token_ids = np.frombuffer(content, dtype=np.uint8).view(np.uint16)
+                        token_ids = np.frombuffer(content, dtype=np.uint8).view(token_dtype)
                         for token_id in token_ids:
                             unigram_counts[j][token_id] += 1
             del lines
@@ -159,16 +158,16 @@ def build_sa(args):
         ratio = int(np.ceil(np.log2(ds_size) / 8))
         mem_bytes = args.mem * 1024**3
         num_job_batches = 1
-        while num_job_batches * (mem_bytes // 8) < ds_size:
+        while num_job_batches * (mem_bytes // (12 if args.token_width == 1 else 8)) < ds_size:
             num_job_batches *= 2
         parallel_jobs = args.cpus
         total_jobs = num_job_batches * parallel_jobs
         print(f'Using {num_job_batches} batches of {parallel_jobs} jobs each, for a total of {total_jobs} jobs.', flush=True)
 
         S = ds_size // total_jobs
-        # Make sure that parts contain whole tokens (2 bytes)
-        if S % 2 == 1:
-            S += 1
+        # Make sure that parts contain whole tokens
+        if S % args.token_width != 0:
+            S += args.token_width - S % args.token_width
 
         parts_dir = os.path.join(args.temp_dir, f'parts-{args.worker_id}')
         shutil.rmtree(parts_dir, ignore_errors=True)
@@ -182,7 +181,7 @@ def build_sa(args):
                 batch_ranges.append((s, e))
             pipes = []
             for (s, e) in batch_ranges:
-                pipes.append(os.popen(f'./rust_indexing make-part --data-file {ds_path} --parts-dir {parts_dir} --start-byte {s} --end-byte {e} --ratio {ratio}'))
+                pipes.append(os.popen(f'./rust_indexing make-part --data-file {ds_path} --parts-dir {parts_dir} --start-byte {s} --end-byte {e} --ratio {ratio} --token-width {args.token_width}'))
             [pipe.read() for pipe in pipes]
             if any([pipe.close() is not None for pipe in pipes]):
                 print('\tStep 2.1 (make-part): Something went wrong', flush=True)
@@ -200,7 +199,7 @@ def build_sa(args):
         shutil.rmtree(merged_dir, ignore_errors=True)
         os.makedirs(merged_dir)
 
-        pipe = os.popen(f'./rust_indexing merge --data-file {ds_path} --parts-dir {parts_dir} --merged-dir {merged_dir} --num-threads {args.cpus} --hacksize {HACK} --ratio {ratio}')
+        pipe = os.popen(f'./rust_indexing merge --data-file {ds_path} --parts-dir {parts_dir} --merged-dir {merged_dir} --num-threads {args.cpus} --hacksize {HACK} --ratio {ratio} --token-width {args.token_width}')
         pipe.read()
         if pipe.close() is not None:
             print('\tStep 2.2 (merge): Something went wrong', flush=True)
@@ -216,7 +215,7 @@ def build_sa(args):
         print(f'\tStep 2.3 (concat): Starting ...', flush=True)
         start_time = time.time()
 
-        pipe = os.popen(f'./rust_indexing concat --data-file {ds_path} --merged-dir {merged_dir} --merged-file {sa_path} --num-threads {args.cpus} --ratio {ratio}')
+        pipe = os.popen(f'./rust_indexing concat --data-file {ds_path} --merged-dir {merged_dir} --merged-file {sa_path} --num-threads {args.cpus} --ratio {ratio} --token-width {args.token_width}')
         pipe.read()
         if pipe.close() is not None:
             print('\tStep 2.3 (concat): Something went wrong', flush=True)
@@ -236,8 +235,8 @@ def main():
     parser.add_argument('--data_dir', type=str, required=True, help='Directory containing the raw text corpus. Must be absolute path.')
     parser.add_argument('--temp_dir', type=str, default=None, help='Directory where temporary indexing files are stored. Must be absolute path.')
     parser.add_argument('--save_dir', type=str, required=True, help='Directory where the final index files are stored. Must be absolute path.')
-    parser.add_argument('--tokenizer', type=str, required=True, choices=['gpt2', 'llama', 'olmo'])
-    parser.add_argument('--doc_sep', type=bytes, default=b'\xff\xff')
+    parser.add_argument('--tokenizer', type=str, default=None, choices=[None, 'gpt2', 'llama', 'olmo'])
+    parser.add_argument('--token_dtype', type=str, default='u16', choices=['u8', 'u16', 'u32'], help='Data type for tokens.')
     parser.add_argument('--batch_size', type=int, default=65536, help='Batch size for tokenization.')
     parser.add_argument('--cpus', type=int, default=mp.cpu_count(), help='Number of CPU cores available to the program.')
     parser.add_argument('--mem', type=int, required=True, help='Amount of memory in GiB available to the program.')
@@ -260,6 +259,22 @@ def main():
     assert args.workers > 0
     assert 0 <= args.worker_id < args.workers
     assert args.shards % args.workers == 0
+
+    global token_dtype
+    if args.token_dtype == 'u8':
+        token_dtype = np.uint8
+        args.token_width = 1
+        args.doc_sep = b'\xff'
+    elif args.token_dtype == 'u16':
+        token_dtype = np.uint16
+        args.token_width = 2
+        args.doc_sep = b'\xff\xff'
+    elif args.token_dtype == 'u32':
+        token_dtype = np.uint32
+        args.token_width = 4
+        args.doc_sep = b'\xff\xff\xff\xff'
+    else:
+        raise ValueError(f'Unknown token_dtype: {args.token_dtype}')
 
     assert os.path.exists(args.data_dir)
     os.makedirs(args.temp_dir, exist_ok=True)

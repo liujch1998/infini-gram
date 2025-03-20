@@ -51,7 +51,9 @@ use std::collections::BinaryHeap;
 use clap::{Parser, Subcommand};
 use glob::glob;
 
-mod table;
+mod table_u8;
+mod table_u16;
+mod table_u32;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -75,6 +77,8 @@ enum Commands {
         end_byte: usize,
         #[clap(short, long)]
         ratio: usize,
+        #[clap(short, long)]
+        token_width: usize,
     },
 
     Merge {
@@ -90,6 +94,8 @@ enum Commands {
         hacksize: usize,
         #[clap(short, long)]
         ratio: usize,
+        #[clap(short, long)]
+        token_width: usize,
     },
 
     Concat {
@@ -103,6 +109,8 @@ enum Commands {
         num_threads: i64,
         #[clap(short, long)]
         ratio: usize,
+        #[clap(short, long)]
+        token_width: usize,
     }
 
 }
@@ -149,8 +157,8 @@ fn table_load_disk(table:&mut BufReader<File>,
 
 /* Binary search to find where query happens to exist in text */
 fn off_disk_position(text: &[u8], table: &mut BufReader<File>,
-                     query: &[u8], size_width: usize) -> usize {
-    let (mut left, mut right) = (0, text.len() / 2);
+                     query: &[u8], size_width: usize, token_width: usize) -> usize {
+    let (mut left, mut right) = (0, text.len() / token_width);
     while left < right {
         let mid = (left + right) / 2;
         if query < &text[table_load_disk(table, mid, size_width)..] {
@@ -207,7 +215,7 @@ fn get_next_pointer_from_table_canfail(tablestream:&mut TableStream) -> u64 {
  * being saved but the constant is rather high. This method does exactly
  * the same thing as save except on a range of bytes.
  */
-fn cmd_make_part(fpath: &String, parts_dir: &String, start: u64, end: u64, ratio: usize)   -> std::io::Result<()> {
+fn cmd_make_part(fpath: &String, parts_dir: &String, start: u64, end: u64, ratio: usize, token_width: usize)   -> std::io::Result<()> {
     let now = Instant::now();
     println!("Opening up the dataset files");
 
@@ -221,24 +229,40 @@ fn cmd_make_part(fpath: &String, parts_dir: &String, start: u64, end: u64, ratio
     file.seek(std::io::SeekFrom::Start(start)).expect ("Seek failed!");
     file.read_exact(&mut text_).unwrap();
 
-    // LJC: Cast the buffers to u16 so we can build the SA for valid positions only
-    assert!(text_.len() % 2 == 0);
-    // LJC: We have to use big-endian here to interpret into u16, because the suffix array operates on bytes
-    let u16_text_: Vec<u16> = text_
-        .chunks(2)
-        .map(|b| u16::from_be_bytes([b[0], b[1]]))
-        .collect();
-    let u16_text = &u16_text_;
-    println!("Done reading the dataset at time t={}ms", now.elapsed().as_millis());
-    println!("... and now starting the suffix array construction.");
-
-    let st = table::SuffixTable::new(u16_text);
-    println!("Done building suffix array at t={}ms",now.elapsed().as_millis());
-    let parts = st.into_parts();
-    let table = parts.1;
-
-    // LJC: multiply every element of the table by 2, because the offsets are counted in bytes
-    let table2 = table.iter().map(|x| x*2).collect::<Vec<u64>>();
+    assert!(text_.len() % token_width == 0);
+    let table2:Vec<u64>;
+    if token_width == 1 {
+        let text = &text_;
+        let st = table_u8::SuffixTable::new(text);
+        let parts = st.into_parts();
+        let table = parts.1;
+        table2 = table.iter().map(|x| *x as u64).collect::<Vec<u64>>();
+    } else if token_width == 2 {
+        // LJC: Cast the buffer to tokens so we can build the SA for valid positions only
+        // LJC: We have to use big-endian here to interpret into u16, because the suffix array operates on bytes
+        let u16_text_: Vec<u16> = text_
+            .chunks(2)
+            .map(|b| u16::from_be_bytes([b[0], b[1]]))
+            .collect();
+        let u16_text = &u16_text_;
+        let st = table_u16::SuffixTable::new(u16_text);
+        let parts = st.into_parts();
+        let table = parts.1;
+        // LJC: multiply every element of the table by 2, because the offsets are counted in bytes
+        table2 = table.iter().map(|x| x*2).collect::<Vec<u64>>();
+    } else if token_width == 4 {
+        let u32_text_: Vec<u32> = text_
+            .chunks(4)
+            .map(|b| u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+            .collect();
+        let u32_text = &u32_text_;
+        let st = table_u32::SuffixTable::new(u32_text);
+        let parts = st.into_parts();
+        let table = parts.1;
+        table2 = table.iter().map(|x| x*4).collect::<Vec<u64>>();
+    } else {
+        panic!("Unsupported token width: {}", token_width);
+    }
 
     let mut buffer = File::create(format!("{}/{}-{}", parts_dir, start, end))?;
     let bufout = to_bytes(&table2, ratio);
@@ -300,7 +324,7 @@ impl<'a> PartialOrd for MergeState<'a> {
  * will work out correctly. (I did call it hacksize after all.....)
  * In practice this works. It may not for your use case if there are long duplicates.
  */
-fn cmd_merge(fpath: &String, parts_dir: &String, merged_dir: &String, num_threads: i64, hacksize: usize, ratio: usize)  -> std::io::Result<()> {
+fn cmd_merge(fpath: &String, parts_dir: &String, merged_dir: &String, num_threads: i64, hacksize: usize, ratio: usize, token_width: usize)  -> std::io::Result<()> {
 
     let mut part_files:Vec<String> = glob(&format!("{}/*", parts_dir)).unwrap().map(|x| x.unwrap()).map(|x| x.to_str().unwrap().to_string()).collect();
     part_files.sort_by(|a, b| {
@@ -446,15 +470,15 @@ fn cmd_merge(fpath: &String, parts_dir: &String, merged_dir: &String, num_thread
             let texts = &texts;
             let mut ends: Vec<usize> = vec![0; nn];
             if i < num_threads as usize-1 {
-                ends[0] = (texts[0].len()/2+(num_threads as usize))/(num_threads as usize)*(i+1);
+                ends[0] = (texts[0].len() / token_width + (num_threads as usize)) / (num_threads as usize) * (i+1);
                 let end_seq = &texts[0][table_load_disk(&mut tables[0], ends[0], ratio as usize)..];
 
                 for j in 1..ends.len() {
-                    ends[j] = off_disk_position(&texts[j], &mut tables[j], end_seq, ratio as usize);
+                    ends[j] = off_disk_position(&texts[j], &mut tables[j], end_seq, ratio as usize, token_width);
                 }
             } else {
                 for j in 0..ends.len() {
-                    ends[j] = texts[j].len()/2;
+                    ends[j] = texts[j].len() / token_width;
                 }
             }
 
@@ -486,13 +510,13 @@ fn cmd_merge(fpath: &String, parts_dir: &String, merged_dir: &String, num_thread
     Ok(())
 }
 
-fn cmd_concat(fpath: &String, merged_dir: &String, merged_file: &String, num_threads: i64, ratio: usize)  -> std::io::Result<()> {
+fn cmd_concat(fpath: &String, merged_dir: &String, merged_file: &String, num_threads: i64, ratio: usize, token_width: usize)  -> std::io::Result<()> {
 
     let ds_size = std::fs::metadata(fpath.clone()).unwrap().len();
 
     // on-disk files to store concat'ed sa
     let merged_buf = OpenOptions::new().write(true).create(true).open(merged_file).unwrap();
-    let merged_buf_size = ds_size / 2 * ratio as u64;
+    let merged_buf_size = ds_size / token_width as u64 * ratio as u64;
     merged_buf.set_len(merged_buf_size).unwrap();
     drop(merged_buf);
 
@@ -536,16 +560,16 @@ fn main()  -> std::io::Result<()> {
     let args = Args::parse();
 
     match &args.command {
-        Commands::MakePart { data_file, parts_dir, start_byte, end_byte, ratio } => {
-            cmd_make_part(data_file, parts_dir, *start_byte as u64, *end_byte as u64, *ratio)?;
+        Commands::MakePart { data_file, parts_dir, start_byte, end_byte, ratio, token_width } => {
+            cmd_make_part(data_file, parts_dir, *start_byte as u64, *end_byte as u64, *ratio, *token_width)?;
         }
 
-        Commands::Merge { data_file, parts_dir, merged_dir, num_threads, hacksize, ratio } => {
-            cmd_merge(data_file, parts_dir, merged_dir, *num_threads, *hacksize, *ratio)?;
+        Commands::Merge { data_file, parts_dir, merged_dir, num_threads, hacksize, ratio, token_width } => {
+            cmd_merge(data_file, parts_dir, merged_dir, *num_threads, *hacksize, *ratio, *token_width)?;
         }
 
-        Commands::Concat { data_file, merged_dir, merged_file, num_threads, ratio } => {
-            cmd_concat(data_file, merged_dir, merged_file, *num_threads, *ratio)?;
+        Commands::Concat { data_file, merged_dir, merged_file, num_threads, ratio, token_width } => {
+            cmd_concat(data_file, merged_dir, merged_file, *num_threads, *ratio, *token_width)?;
         }
     }
 

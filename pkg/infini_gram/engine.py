@@ -6,7 +6,7 @@ from . import cpp_engine
 
 class InfiniGramEngine:
 
-    def __init__(self, index_dir: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_type='u16',
+    def __init__(self, index_dir: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_dtype='u16',
                  load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
                  bow_ids_path: str = None, precompute_unigram_logprobs: bool = False,
                  max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=1000,
@@ -44,17 +44,17 @@ class InfiniGramEngine:
                 print(f"Error reading bow_ids_path: {e}")
                 raise e
 
-        if token_type == 'u8':
+        if token_dtype == 'u8':
             self.token_id_max = 2**8 - 1
             engine_class = cpp_engine.Engine_U8
-        elif token_type == 'u16':
+        elif token_dtype == 'u16':
             self.token_id_max = 2**16 - 1
             engine_class = cpp_engine.Engine_U16
-        elif token_type == 'u32':
+        elif token_dtype == 'u32':
             self.token_id_max = 2**32 - 1
             engine_class = cpp_engine.Engine_U32
         else:
-            raise ValueError(f'Unsupported token type: {token_type}')
+            raise ValueError(f'Unsupported token dtype: {token_dtype}')
         self.engine = engine_class(index_dir, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)
 
     def compute_unigram_counts(self, s: int) -> List[int]:
@@ -402,7 +402,7 @@ class InfiniGramEngine:
 
 class InfiniGramEngineDiff(InfiniGramEngine):
 
-    def __init__(self, index_dir: Iterable[str] | str, index_dir_diff: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_type='u16',
+    def __init__(self, index_dir: Iterable[str] | str, index_dir_diff: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_dtype='u16',
                  load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
                  bow_ids_path: str = None, precompute_unigram_logprobs: bool = False,
                  max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=1000,
@@ -443,14 +443,14 @@ class InfiniGramEngineDiff(InfiniGramEngine):
                 print(f"Error reading bow_ids_path: {e}")
                 raise e
 
-        if token_type == 'u8':
+        if token_dtype == 'u8':
             engine_class = cpp_engine.EngineDiff_U8
-        elif token_type == 'u16':
+        elif token_dtype == 'u16':
             engine_class = cpp_engine.EngineDiff_U16
-        elif token_type == 'u32':
+        elif token_dtype == 'u32':
             engine_class = cpp_engine.EngineDiff_U32
         else:
-            raise ValueError(f'Unsupported token type: {token_type}')
+            raise ValueError(f'Unsupported token dtype: {token_dtype}')
         self.engine = engine_class(index_dir, index_dir_diff, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)
 
     def get_docs_by_ptrs_2(self, requests: List[GetDocsByPtrsRequestWithTakedown]) -> InfiniGramEngineResponse[List[List[DocResult]]]:
