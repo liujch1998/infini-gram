@@ -16,6 +16,7 @@ HACK = 100000
 
 tokenizer = None
 token_dtype = None
+version = None
 
 def load_file(path):
     if path.endswith('.gz'):
@@ -38,12 +39,16 @@ def load_file(path):
     return lines
 
 def tok(line):
-    global tokenizer, token_dtype
+    global tokenizer, token_dtype, version
     metadata = json.loads(line.strip('\n'))
     if tokenizer is None:
         byte_arr = metadata['text'].encode('utf-8')
+        if version == 5:
+            byte_arr = byte_arr[::-1].copy()
     else:
         text = tokenizer.encode(metadata['text'])
+        if version == 5:
+            text = text[::-1].copy()
         byte_arr = np.array(text, dtype=token_dtype).view(np.uint8).tobytes()
     del metadata['text']
     return byte_arr, metadata
@@ -235,18 +240,20 @@ def main():
     parser.add_argument('--data_dir', type=str, required=True, help='Directory containing the raw text corpus. Must be absolute path.')
     parser.add_argument('--temp_dir', type=str, default=None, help='Directory where temporary indexing files are stored. Must be absolute path.')
     parser.add_argument('--save_dir', type=str, required=True, help='Directory where the final index files are stored. Must be absolute path.')
+    parser.add_argument('--version', type=int, default=4, choices=[4, 5], help='Version of the index.')
     parser.add_argument('--tokenizer', type=str, default=None, choices=[None, 'gpt2', 'llama', 'olmo'])
     parser.add_argument('--token_dtype', type=str, default='u16', choices=['u8', 'u16', 'u32'], help='Data type for tokens.')
-    parser.add_argument('--batch_size', type=int, default=65536, help='Batch size for tokenization.')
-    parser.add_argument('--cpus', type=int, default=mp.cpu_count(), help='Number of CPU cores available to the program.')
-    parser.add_argument('--mem', type=int, required=True, help='Amount of memory in GiB available to the program.')
+    parser.add_argument('--add_metadata', default=False, action='store_true', help='Whether to store document metadata in the index.')
+    parser.add_argument('--add_unigram', default=False, action='store_true', help='Whether to precompute unigram counts.')
     parser.add_argument('--shards', type=int, default=1, help='Number of shards to split the index into.')
     parser.add_argument('--workers', type=int, default=1, help='Total number of workers. Must be a divisor of shards.')
     parser.add_argument('--worker_id', type=int, default=0, help='The worker ID of this process. Must be in range [0, workers).')
-    parser.add_argument('--add_metadata', default=False, action='store_true', help='Whether to store document metadata in the index.')
-    parser.add_argument('--add_unigram', default=False, action='store_true', help='Whether to precompute unigram counts.')
+    parser.add_argument('--batch_size', type=int, default=65536, help='Batch size for tokenization.')
+    parser.add_argument('--cpus', type=int, default=mp.cpu_count(), help='Number of CPU cores available to the program.')
+    parser.add_argument('--mem', type=int, required=True, help='Amount of memory in GiB available to the program.')
     parser.add_argument('--ulimit', type=int, default=1048576, help='Maximum number of open files allowed.')
     args = parser.parse_args()
+
     if args.temp_dir is None:
         args.temp_dir = args.save_dir
     args.data_dir = args.data_dir.rstrip('/')
@@ -260,7 +267,7 @@ def main():
     assert 0 <= args.worker_id < args.workers
     assert args.shards % args.workers == 0
 
-    global token_dtype
+    global token_dtype, version
     if args.token_dtype == 'u8':
         token_dtype = np.uint8
         args.token_width = 1
@@ -275,6 +282,7 @@ def main():
         args.doc_sep = b'\xff\xff\xff\xff'
     else:
         raise ValueError(f'Unknown token_dtype: {args.token_dtype}')
+    version = args.version
 
     assert os.path.exists(args.data_dir)
     os.makedirs(args.temp_dir, exist_ok=True)
