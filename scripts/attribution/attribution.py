@@ -47,20 +47,24 @@ def format_doc(doc, span_ids):
 def main():
     engine = InfiniGramEngine(
         index_dir=[
-            '/weka/oe-training-default/jiachengl/index/v4_olmoe-mix-0924-dclm_llama',
-            '/weka/oe-training-default/jiachengl/index/v4_olmoe-mix-0924-nodclm_llama',
-            '/weka/oe-training-default/jiachengl/index/v4_tulu-v3.1-mix-preview-4096-OLMoE_llama',
-            '/weka/oe-training-default/jiachengl/index/v4_ultrafeedback-binarized-cleaned_llama',
+            '/weka/oe-training-default/jiachengl/he-infinigram-api/index/v4_olmoe-mix-0924-dclm_llama',
+            '/weka/oe-training-default/jiachengl/he-infinigram-api/index/v4_olmoe-mix-0924-nodclm_llama',
+            '/weka/oe-training-default/jiachengl/he-infinigram-api/index/v4_olmo-2-1124-13b-anneal-adapt_llama',
         ],
         eos_token_id=2, bow_ids_path='./llama-2_bow_ids.txt', precompute_unigram_logprobs=True,
         ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0,
     )
 
-    name = sys.argv[1]
-    text = open(f'input/{name}.txt', 'r').read()
-    print('Model output:')
-    print(text)
-    print('='*80)
+    # name = sys.argv[1]
+    # text = open(f'input/{name}.txt', 'r').read()
+    # print('Model output:')
+    # print(text)
+    # print('='*80)
+
+    text = '''Celine Dion is a Canadian singer known for her powerful voice and wide vocal range. She has achieved international fame and is one of the best-selling artists of all time. Born on March 30, 1968, in Charlemagne, Quebec, Canada, Dion began performing at a young age and gained prominence in the music industry in the 1980s.
+
+Her career took off when she won the 1988 Eurovision Song Contest with the song "Ne partez pas sans moi." This victory launched her into international stardom.'''
+    # text = '''Taylor Swift is an American singer-songwriter and musician known for her narrative songwriting which often draws on her personal life. She was born on December 13, 1989, in Reading, Pennsylvania.'''
 
     input_ids = tokenizer.encode(text)
 
@@ -85,6 +89,22 @@ def main():
         print(f'\tl = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
     print('='*80)
 
+    text = ' Dion is a Canadian singer'
+    input_ids = tokenizer.encode(text)[1:]
+    find_result = engine.find(input_ids=input_ids)
+    print(find_result)
+    for s, segment in enumerate(find_result['segment_by_shard']):
+        b, e = segment
+        print(s)
+        prev_doc = engine.get_doc_by_rank(s=s, rank=b-1, max_disp_len=20)
+        print(tokenizer.decode(prev_doc['token_ids']))
+        first_doc = engine.get_doc_by_rank(s=s, rank=b, max_disp_len=20)
+        print(tokenizer.decode(first_doc['token_ids']))
+        last_doc = engine.get_doc_by_rank(s=s, rank=e-1, max_disp_len=20)
+        print(tokenizer.decode(last_doc['token_ids']))
+        next_doc = engine.get_doc_by_rank(s=s, rank=e, max_disp_len=20)
+        print(tokenizer.decode(next_doc['token_ids']))
+
     # for span in spans:
     #     disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
     #     print(f'l = {span["l"]}, r = {span["r"]}, length = {span["length"]}, count = {span["count"]}, span = "{disp_span}"')
@@ -94,19 +114,19 @@ def main():
     #         print(format_doc(doc, span_ids=input_ids[span['l']:span['r']]))
     #     print('-'*80)
 
-    with open(f'span/{name}.csv', 'w') as f:
-        writer = csv.DictWriter(f, fieldnames=['l', 'r', 'span', 'length', 'count', 'unigram_logprob_sum'])
-        writer.writeheader()
-        for span in spans:
-            disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
-            writer.writerow({
-                'l': span['l'],
-                'r': span['r'],
-                'span': disp_span,
-                'length': span['length'],
-                'count': span['count'],
-                'unigram_logprob_sum': span['unigram_logprob_sum'],
-            })
+    # with open(f'span/{name}.csv', 'w') as f:
+    #     writer = csv.DictWriter(f, fieldnames=['l', 'r', 'span', 'length', 'count', 'unigram_logprob_sum'])
+    #     writer.writeheader()
+    #     for span in spans:
+    #         disp_span = tokenizer.decode(input_ids[span['l']:span['r']]).replace('\n', '\\n')
+    #         writer.writerow({
+    #             'l': span['l'],
+    #             'r': span['r'],
+    #             'span': disp_span,
+    #             'length': span['length'],
+    #             'count': span['count'],
+    #             'unigram_logprob_sum': span['unigram_logprob_sum'],
+    #         })
 
 if __name__ == '__main__':
     main()

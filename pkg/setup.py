@@ -33,7 +33,7 @@ ext_modules = [
             get_pybind_include(),
         ],
         language='c++',
-        extra_compile_args=['-std=c++17'],
+        extra_compile_args=['-std=c++20'],
     ),
 ]
 

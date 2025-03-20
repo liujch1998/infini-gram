@@ -1,33 +1,18 @@
-/* Copyright 2021 Google LLC
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-
 /* This code is almost entirely based on TODO from TODO. The original
  * program was licensed under the MIT license. We have modified it for
  * for two reasons:
- * 
+ *
  * 1. The original implementation used u32 indices to point into the
  *    suffix array. This is smaller and fairly cache efficient, but here
  *    in the Real World we have to work with Big Data and our datasets
  *    are bigger than 2^32 bytes. So we have to work with u64 instead.
- * 
+ *
  * 2. The original implementation had a utf8 interface. This is very
  *    convenient if you're working with strings, but we are working with
  *    byte arrays almost exclusively, and so just cut out the strings.
- * 
+ *
  * When the comments below contradict these two statements, that's why.
- */ 
+ */
 
 
 use std::borrow::Cow;
