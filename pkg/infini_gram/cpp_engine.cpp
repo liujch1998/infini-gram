@@ -134,7 +134,7 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def_readwrite("spans", &AttributionResult::spans);
 
     py::class_<Engine<U8>>(m, "Engine_U8")
-        .def(py::init<const vector<string>, const U8, const U8, const size_t, const bool, const size_t, const size_t, const size_t, const set<U8>, const bool>())
+        .def(py::init<const vector<string>, const U8, const U8, const size_t, const bool, const size_t, const size_t, const size_t, const set<U8>, const size_t, const bool>())
         .def("compute_unigram_counts", &Engine<U8>::compute_unigram_counts, "s"_a)
         .def("find", &Engine<U8>::find, py::call_guard<py::gil_scoped_release>(), "input_ids"_a)
         .def("find_cnf", &Engine<U8>::find_cnf, py::call_guard<py::gil_scoped_release>(), "cnf"_a, "max_clause_freq"_a, "max_diff_tokens"_a)
@@ -166,7 +166,7 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def("attribute", &Engine<U8>::attribute, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "enforce_bow"_a);
 
     py::class_<Engine<U16>>(m, "Engine_U16")
-        .def(py::init<const vector<string>, const U16, const U16, const size_t, const bool, const size_t, const size_t, const size_t, const set<U16>, const bool>())
+        .def(py::init<const vector<string>, const U16, const U16, const size_t, const bool, const size_t, const size_t, const size_t, const set<U16>, const size_t, const bool>())
         .def("compute_unigram_counts", &Engine<U16>::compute_unigram_counts, "s"_a)
         .def("find", &Engine<U16>::find, py::call_guard<py::gil_scoped_release>(), "input_ids"_a)
         .def("find_cnf", &Engine<U16>::find_cnf, py::call_guard<py::gil_scoped_release>(), "cnf"_a, "max_clause_freq"_a, "max_diff_tokens"_a)
@@ -198,7 +198,7 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def("attribute", &Engine<U16>::attribute, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "enforce_bow"_a);
 
     py::class_<Engine<U32>>(m, "Engine_U32")
-        .def(py::init<const vector<string>, const U32, const U32, const size_t, const bool, const size_t, const size_t, const size_t, const set<U32>, const bool>())
+        .def(py::init<const vector<string>, const U32, const U32, const size_t, const bool, const size_t, const size_t, const size_t, const set<U32>, const size_t, const bool>())
         .def("compute_unigram_counts", &Engine<U32>::compute_unigram_counts, "s"_a)
         .def("find", &Engine<U32>::find, py::call_guard<py::gil_scoped_release>(), "input_ids"_a)
         .def("find_cnf", &Engine<U32>::find_cnf, py::call_guard<py::gil_scoped_release>(), "cnf"_a, "max_clause_freq"_a, "max_diff_tokens"_a)
@@ -230,14 +230,14 @@ PYBIND11_MODULE(cpp_engine, m) {
         .def("attribute", &Engine<U32>::attribute, py::call_guard<py::gil_scoped_release>(), "input_ids"_a, "delim_ids"_a, "min_len"_a, "max_cnt"_a, "enforce_bow"_a);
 
     py::class_<EngineDiff<U8>, Engine<U8>>(m, "EngineDiff_U8")
-        .def(py::init<const vector<string>, const vector<string>, const U8, const U8, const size_t, const bool, const size_t, const size_t, const size_t, const set<U8>, const bool>())
+        .def(py::init<const vector<string>, const vector<string>, const U8, const U8, const size_t, const bool, const size_t, const size_t, const size_t, const set<U8>, const size_t, const bool>())
         .def("get_docs_by_ptrs_2", &EngineDiff<U8>::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a);
 
     py::class_<EngineDiff<U16>, Engine<U16>>(m, "EngineDiff_U16")
-        .def(py::init<const vector<string>, const vector<string>, const U16, const U16, const size_t, const bool, const size_t, const size_t, const size_t, const set<U16>, const bool>())
+        .def(py::init<const vector<string>, const vector<string>, const U16, const U16, const size_t, const bool, const size_t, const size_t, const size_t, const set<U16>, const size_t, const bool>())
         .def("get_docs_by_ptrs_2", &EngineDiff<U16>::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a);
 
     py::class_<EngineDiff<U32>, Engine<U32>>(m, "EngineDiff_U32")
-        .def(py::init<const vector<string>, const vector<string>, const U32, const U32, const size_t, const bool, const size_t, const size_t, const size_t, const set<U32>, const bool>())
+        .def(py::init<const vector<string>, const vector<string>, const U32, const U32, const size_t, const bool, const size_t, const size_t, const size_t, const set<U32>, const size_t, const bool>())
         .def("get_docs_by_ptrs_2", &EngineDiff<U32>::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a);
 }

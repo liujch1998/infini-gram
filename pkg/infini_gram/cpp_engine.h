@@ -139,10 +139,10 @@ public:
     Engine(
         const vector<string> index_dirs, const T eos_token_id, const T vocab_size, const size_t version,
         const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth,
-        const set<T> bow_ids, const bool precompute_unigram_logprobs)
+        const set<T> bow_ids, const size_t attribution_block_size, const bool precompute_unigram_logprobs)
         : _eos_token_id(eos_token_id), _vocab_size(vocab_size), _version(version),
           _load_to_ram(load_to_ram), _ds_prefetch_depth(ds_prefetch_depth), _sa_prefetch_depth(sa_prefetch_depth), _od_prefetch_depth(od_prefetch_depth),
-          _bow_ids(bow_ids),
+          _bow_ids(bow_ids), _attribution_block_size(attribution_block_size),
           _doc_sep_id((T)(-1)), _doc_sep(vector<U8>(sizeof(T), 0xff))
     {
 
@@ -1362,10 +1362,9 @@ public:
     vector<pair<PSS, FindResult>> compute_interesting_spans(const vector<T> &input_ids, const vector<T> &delim_ids, const size_t min_len, const size_t max_cnt, const bool enforce_bow) const {
 
         vector<vector<pair<PSS, FindResult>>> span_find_pairs_by_l(input_ids.size());
-        const size_t BLOCK_SIZE = 512;
-        for (size_t l_block = 0; l_block < input_ids.size(); l_block += BLOCK_SIZE) {
+        for (size_t l_block = 0; l_block < input_ids.size(); l_block += _attribution_block_size) {
             vector<thread> threads;
-            for (size_t l = l_block; l < min(l_block + BLOCK_SIZE, input_ids.size()); l++) {
+            for (size_t l = l_block; l < min(l_block + _attribution_block_size, input_ids.size()); l++) {
                 // skip if this word is not a beginning-of-word
                 if (enforce_bow && _bow_ids.find(input_ids[l]) == _bow_ids.end()) continue;
 
@@ -1584,6 +1583,7 @@ private:
     size_t _sa_prefetch_depth;
     size_t _od_prefetch_depth;
     set<T> _bow_ids;
+    size_t _attribution_block_size;
     T _doc_sep_id;
     vector<U8> _doc_sep;
     size_t _num_shards;
@@ -1601,9 +1601,9 @@ public:
     EngineDiff(
         const vector<string> index_dirs, const vector<string> index_dirs_diff, const T eos_token_id, const T vocab_size, const size_t version,
         const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth,
-        const set<T> bow_ids, const bool precompute_unigram_logprobs)
-        : Engine<T>(index_dirs, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs),
-          _engine_diff(make_unique<Engine<T>>(index_dirs_diff, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, precompute_unigram_logprobs)) {}
+        const set<T> bow_ids, const size_t attribution_block_size, const bool precompute_unigram_logprobs)
+        : Engine<T>(index_dirs, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs),
+          _engine_diff(make_unique<Engine<T>>(index_dirs_diff, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs)) {}
 
     // The shape of returned document results is identical to the shape of input requests. Blocked documents are marked and have an empty token_ids.
     vector<vector<DocResult<T>>> get_docs_by_ptrs_2(const vector<tuple<vector<pair<size_t, U64>>, vector<T>, U64, U64>> requests) const {

@@ -35,7 +35,7 @@ int main() {
     U64 max_disp_len = 20;
     size_t maxnum = 2;
 
-    auto engine = Engine<U16>({"../index/v4_pileval_llama"}, 2, 32000, 4, false, 1, 3, 3, {}, false);
+    auto engine = Engine<U16>({"../index/v4_pileval_llama"}, 2, 32000, 4, false, 1, 3, 3, {}, 512, false);
     // auto engine = Engine({"../index/v4_dolma-v1_6-sample_llama"}, 2, false, 1, 3, 3);
     // auto engine = Engine({"../index/v4_pileval_llama", "../index/v4_dolma-v1_6-sample_llama"}, 2, false, 1, 3, 3);
 

@@ -7,6 +7,8 @@ from infini_gram.engine import InfiniGramEngine
 
 def main():
     engine = InfiniGramEngine(index_dir='../index/v4_pileval_llama', eos_token_id=2)
+    # engine = InfiniGramEngine(index_dir='../index/v4_pileval_llama_u32', eos_token_id=2, token_dtype='u32')
+    # engine = InfiniGramEngine(index_dir='../index/v5_pileval_llama', eos_token_id=2, version=5)
     # engine = InfiniGramEngine(index_dir='../index/v4_dolma-v1_6-sample_llama', eos_token_id=2)
     # engine = InfiniGramEngine(index_dir=['../index/v4_pileval_llama', '../index/v4_dolma-v1_6-sample_llama'], eos_token_id=2)
 
