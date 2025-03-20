@@ -1264,12 +1264,7 @@ public:
         U64 num_bytes = input_ids->size() * sizeof(T);
         pair<U64, U64> segment;
         pair<U64, U64> hint_segment = {0, shard.tok_cnt};
-        vector<thread> threads;
-        threads.emplace_back(&Engine::_find_thread, this,
-            s, input_buf, num_bytes, hint_segment, &segment);
-        for (auto &thread : threads) {
-            thread.join();
-        }
+        _find_thread(s, input_buf, num_bytes, hint_segment, &segment);
         U64 start = segment.first, end = segment.second;
 
         if (start != end) {
