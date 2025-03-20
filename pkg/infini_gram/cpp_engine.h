@@ -218,7 +218,8 @@ public:
                                 iss >> token_id >> count;
                             } else {
                                 token_id = linenum;
-                                count = stoi(line);
+                                istringstream iss(line);
+                                iss >> count;
                             }
                             shard_unigram_counts[token_id] = count;
                         }
@@ -241,8 +242,9 @@ public:
             }
             assert (total_tok_cnt == get_total_tok_cnt());
             for (const auto &[token_id, count] : unigram_counts) {
-                assert (count > 0);
-                _unigram_logprobs[token_id] = log(count) - log(total_tok_cnt);
+                if (count > 0) {
+                    _unigram_logprobs[token_id] = log(count) - log(total_tok_cnt);
+                }
             }
         }
     }
