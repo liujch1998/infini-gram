@@ -22,7 +22,7 @@ before-build = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -
 
 [tool.cibuildwheel.macos]
 before-build = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env"
-environment = "CC=$(brew --prefix llvm@15)/bin/clang"
+archs = "x86_64 universal2"
 
 [[tool.cibuildwheel.overrides]]
 select = "*macosx_x86_64"
