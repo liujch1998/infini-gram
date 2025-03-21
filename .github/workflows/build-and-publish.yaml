@@ -19,10 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set compiler on macOS
-        if: runner.os == 'macOS' 
-        run: echo "CC=$(brew --prefix llvm@15)/bin/clang >> $GITHUB_ENV"
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22.0
         with:
