@@ -21,7 +21,6 @@ build = "cp3*-manylinux* cp3*-macos*"
 before-build = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env"
 
 [tool.cibuildwheel.macos]
-before-build = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env"
 archs = "x86_64 arm64"
 
 [[tool.cibuildwheel.overrides]]
