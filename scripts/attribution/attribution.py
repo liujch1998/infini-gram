@@ -7,7 +7,7 @@ import sys
 import time
 import numpy as np
 import transformers
-sys.path.append('../pkg')
+sys.path = ['../../pkg'] + sys.path
 from infini_gram.engine import InfiniGramEngine
 
 tokenizer = transformers.AutoTokenizer.from_pretrained('meta-llama/Llama-2-7b-hf', add_bos_token=False, add_eos_token=False)

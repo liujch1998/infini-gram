@@ -376,10 +376,23 @@ class InfiniGramEngine:
         return self.engine.get_total_doc_cnt()
 
     def creativity(self, input_ids: QueryIdsType) -> InfiniGramEngineResponse[CreativityResponse]:
+        if not self.check_query_ids(input_ids, allow_empty=True):
+            return {'error': f'input_ids must be a list of integers in range [0, {self.token_id_max}]'}
         result = self.engine.creativity(input_ids=input_ids)
         return {'rs': result.rs}
 
     def attribute(self, input_ids: QueryIdsType, delim_ids: Iterable[int], min_len: int, max_cnt: int, enforce_bow: bool) -> AttributionResponse:
+        if not self.check_query_ids(input_ids, allow_empty=True):
+            return {'error': f'input_ids must be a list of integers in range [0, {self.token_id_max}]'}
+        if not self.check_query_ids(delim_ids, allow_empty=True):
+            return {'error': f'delim_ids must be a list of integers in range [0, {self.token_id_max}]'}
+        if not (type(min_len) == int and min_len >= 0):
+            return {'error': 'min_len must be a non-negative integer'}
+        if not (type(max_cnt) == int and max_cnt > 0):
+            return {'error': 'max_cnt must be a positive integer'}
+        if not (type(enforce_bow) == bool):
+            return {'error': 'enforce_bow must be a boolean'}
+
         result = self.engine.attribute(input_ids=input_ids, delim_ids=delim_ids, min_len=min_len, max_cnt=max_cnt, enforce_bow=enforce_bow)
 
         return {
@@ -444,10 +457,13 @@ class InfiniGramEngineDiff(InfiniGramEngine):
                 raise e
 
         if token_dtype == 'u8':
+            self.token_id_max = 2**8 - 1
             engine_class = cpp_engine.EngineDiff_U8
         elif token_dtype == 'u16':
+            self.token_id_max = 2**16 - 1
             engine_class = cpp_engine.EngineDiff_U16
         elif token_dtype == 'u32':
+            self.token_id_max = 2**32 - 1
             engine_class = cpp_engine.EngineDiff_U32
         else:
             raise ValueError(f'Unsupported token dtype: {token_dtype}')
