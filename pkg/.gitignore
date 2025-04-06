@@ -2,6 +2,7 @@ build
 dist
 *.egg-info
 wheelhouse
+wheel-github
 infini_gram/rust_indexing
 Cargo.lock
 target
