@@ -1,5 +1,7 @@
 ---
 layout: page
+redirect_to:
+  - https://infini-gram.readthedocs.io/en/latest/api.html
 title: API Endpoint
 ---
 

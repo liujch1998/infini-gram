@@ -75,6 +75,41 @@ We have made the following indexes publicly available on AWS S3:
      - Corpus
      - Tokenizer
      - S3 URL
+   * - ``v4_olmoe-mix-0924-dclm_llama``
+     - 2,948,096,911
+     - 4,341,627,197,578
+     - 33TiB
+     - `olmoe-mix-0924 <https://huggingface.co/datasets/allenai/olmoe-mix-0924>`_ (the DCLM part)
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
+     - `s3://infini-gram/index/v4_olmoe-mix-0924-dclm_llama <s3://infini-gram/index/v4_olmoe-mix-0924-dclm_llama>`_
+   * - ``v4_olmoe-mix-0924-nodclm_llama``
+     - 133,343,623
+     - 233,848,504,469
+     - 1.8TiB
+     - `olmoe-mix-0924 <https://huggingface.co/datasets/allenai/olmoe-mix-0924>`_ (everything except DCLM)
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
+     - `s3://infini-gram/index/v4_olmoe-mix-0924-nodclm_llama <s3://infini-gram/index/v4_olmoe-mix-0924-nodclm_llama>`_
+   * - ``v4_olmo-2-0325-32b-anneal-adapt_llama``
+     - 82,461,386
+     - 35,153,386,430
+     - 268GiB
+     - `dolmino-mix-1124 <https://huggingface.co/datasets/allenai/dolmino-mix-1124>`_ (except those already in pre-training); `SFT <https://huggingface.co/datasets/allenai/tulu-3-sft-olmo-2-mixture-0225>`_; `DPO <https://huggingface.co/datasets/allenai/olmo-2-0325-32b-preference-mix>`_; `RLVR <https://huggingface.co/datasets/allenai/RLVR-GSM-MATH-IF-Mixed-Constraints>`_
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
+     - `s3://infini-gram/index/v4_olmo-2-0325-32b-anneal-adapt_llama <s3://infini-gram/index/v4_olmo-2-0325-32b-anneal-adapt_llama>`_
+   * - ``v4_olmo-2-1124-13b-anneal-adapt_llama``
+     - 82,534,460
+     - 35,273,912,238
+     - 269GiB
+     - `dolmino-mix-1124 <https://huggingface.co/datasets/allenai/dolmino-mix-1124>`_ (except those already in pre-training); `SFT <https://huggingface.co/datasets/allenai/tulu-3-sft-olmo-2-mixture>`_; `DPO <https://huggingface.co/datasets/allenai/olmo-2-1124-13b-preference-mix>`_; `RLVR <https://huggingface.co/datasets/allenai/RLVR-GSM-MATH-IF-Mixed-Constraints>`_
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
+     - `s3://infini-gram/index/v4_olmo-2-1124-13b-anneal-adapt_llama <s3://infini-gram/index/v4_olmo-2-1124-13b-anneal-adapt_llama>`_
+   * - ``v4_olmoe-0125-1b-7b-anneal-adapt_llama``
+     - 82,513,183
+     - 35,262,277,074
+     - 269GiB
+     - `dolmino-mix-1124 <https://huggingface.co/datasets/allenai/dolmino-mix-1124>`_ (except those already in pre-training); `SFT <https://huggingface.co/datasets/allenai/tulu-3-sft-olmo-2-mixture>`_; `DPO <https://huggingface.co/datasets/allenai/olmoe-0125-1b-7b-preference-mix>`_; `RLVR <https://huggingface.co/datasets/allenai/RLVR-GSM>`_
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
+     - `s3://infini-gram/index/v4_olmoe-0125-1b-7b-anneal-adapt_llama <s3://infini-gram/index/v4_olmoe-0125-1b-7b-anneal-adapt_llama>`_
    * - ``v4_dolma-v1_7_llama``
      - 3,403,336,408
      - 2,604,642,372,173

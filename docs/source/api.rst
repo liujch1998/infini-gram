@@ -61,6 +61,21 @@ We have built the infini-gram indexes on several corpora, and you may query them
      - Tokens
      - Corpus
      - Tokenizer
+   * - ``v4_olmo-2-0325-32b-instruct_llama``
+     - 3,163,901,920
+     - 4,610,629,088,477
+     - `OLMo-2-0325-32B-Instruct <https://huggingface.co/allenai/OLMo-2-0325-32B-Instruct>`_
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
+   * - ``v4_olmo-2-1124-13b-instruct_llama``
+     - 3,163,974,994
+     - 4,610,749,614,285
+     - `OLMo-2-1124-13B-Instruct <https://huggingface.co/allenai/OLMo-2-1124-13B-Instruct>`_
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
+   * - ``v4_olmoe-0125-1b-7b-instruct_llama``
+     - 3,163,953,717
+     - 4,610,737,979,121
+     - `OLMoE-0125-1B-7B-Instruct <https://huggingface.co/allenai/OLMoE-1B-7B-0125-Instruct>`_
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
    * - ``v4_dolma-v1_7_llama``
      - 3,403,336,408
      - 2,604,642,372,173
