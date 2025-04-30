@@ -5,7 +5,7 @@ title: Home
 
 <h2 align="center">📖 <b>Infini-gram: Scaling Unbounded n-gram Language Models to a Trillion Tokens</b></h2>
 
-<p align="center"><a href="https://liujch1998.github.io">Jiacheng (Gary) Liu</a><sup>1</sup>, <a href="https://shmsw25.github.io">Sewon Min</a><sup>1</sup>, <a href="https://www.cs.washington.edu/people/faculty/lsz/">Luke Zettlemoyer</a><sup>1</sup>, <a href="https://homes.cs.washington.edu/~yejin/">Yejin Choi</a><sup>1,2</sup>, <a href="https://homes.cs.washington.edu/~hannaneh/">Hannaneh Hajishirzi</a><sup>1,2</sup></p>
+<p align="center"><a href="https://liujch1998.github.io">Jiacheng Liu</a><sup>1</sup>, <a href="https://shmsw25.github.io">Sewon Min</a><sup>1</sup>, <a href="https://www.cs.washington.edu/people/faculty/lsz/">Luke Zettlemoyer</a><sup>1</sup>, <a href="https://homes.cs.washington.edu/~yejin/">Yejin Choi</a><sup>1,2</sup>, <a href="https://homes.cs.washington.edu/~hannaneh/">Hannaneh Hajishirzi</a><sup>1,2</sup></p>
 
 <p align="center"><sup>1</sup>University of Washington, <sup>2</sup>Allen Institute for AI</p>
 

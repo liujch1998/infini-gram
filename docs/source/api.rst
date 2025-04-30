@@ -76,6 +76,16 @@ We have built the infini-gram indexes on several corpora, and you may query them
      - 4,610,737,979,121
      - `OLMoE-0125-1B-7B-Instruct <https://huggingface.co/allenai/OLMoE-1B-7B-0125-Instruct>`_
      - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
+   * - ``v4_olmo-mix-1124_llama``
+     - 3,081,440,534
+     - 4,575,475,702,047
+     - `OLMo-mix-1124 <https://huggingface.co/datasets/allenai/olmo-mix-1124>`_
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
+   * - ``v4_dclm-baseline_llama``
+     - 2,948,096,911
+     - 4,341,627,197,578
+     - `DCLM-baseline <https://huggingface.co/datasets/mlfoundations/dclm-baseline-1.0>`_
+     - `Llama-2 <https://huggingface.co/meta-llama/Llama-2-7b-hf>`_
    * - ``v4_dolma-v1_7_llama``
      - 3,403,336,408
      - 2,604,642,372,173

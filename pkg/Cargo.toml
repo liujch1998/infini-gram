@@ -2,7 +2,7 @@
 name = "rust_indexing" # the name of the package
 version = "1.0.0"    # the current version, obeying semver
 
-authors = ["Jiacheng (Gary) Liu <liujc@cs.washington.edu>"]
+authors = ["Jiacheng Liu <liujc@cs.washington.edu>"]
 
 [profile.dev]
 opt-level = 3

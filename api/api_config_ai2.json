@@ -13,6 +13,25 @@
         "tokenizer": "llama"
     },
     {
+        "name": "v4_dclm-baseline_llama",
+        "dir": [
+            "/data-v4-olmoe-mix-0924-dclm-s0-llama/v4_olmoe-mix-0924-dclm-s0_llama",
+            "/data-v4-olmoe-mix-0924-dclm-s1-llama/v4_olmoe-mix-0924-dclm-s1_llama",
+            "/data-v4-olmoe-mix-0924-dclm-s2-llama/v4_olmoe-mix-0924-dclm-s2_llama"
+        ],
+        "tokenizer": "llama"
+    },
+    {
+        "name": "v4_olmo-mix-1124_llama",
+        "dir": [
+            "/data-v4-olmoe-mix-0924-dclm-s0-llama/v4_olmoe-mix-0924-dclm-s0_llama",
+            "/data-v4-olmoe-mix-0924-dclm-s1-llama/v4_olmoe-mix-0924-dclm-s1_llama",
+            "/data-v4-olmoe-mix-0924-dclm-s2-llama/v4_olmoe-mix-0924-dclm-s2_llama",
+            "/data-v4-olmoe-mix-0924-nodclm-llama/v4_olmoe-mix-0924-nodclm_llama"
+        ],
+        "tokenizer": "llama"
+    },
+    {
         "name": "v4_olmo-2-0325-32b-instruct_llama",
         "dir": [
             "/data-v4-olmoe-mix-0924-dclm-s0-llama/v4_olmoe-mix-0924-dclm-s0_llama",
