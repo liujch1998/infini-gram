@@ -469,7 +469,7 @@ class InfiniGramEngineDiff(InfiniGramEngine):
             raise ValueError(f'Unsupported token dtype: {token_dtype}')
         self.engine = engine_class(index_dir, index_dir_diff, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs)
 
-    def get_docs_by_ptrs_2(self, requests: List[GetDocsByPtrsRequestWithTakedown]) -> InfiniGramEngineResponse[List[List[DocResult]]]:
+    def get_docs_by_ptrs_2_grouped(self, requests: List[GetDocsByPtrsRequestWithTakedown]) -> InfiniGramEngineResponse[List[List[DocResult]]]:
         num_shards = self.engine.get_num_shards()
         for request in requests:
             needle_len = request['needle_len']
@@ -487,7 +487,7 @@ class InfiniGramEngineDiff(InfiniGramEngine):
                 if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % 2 == 0):
                     return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
 
-        resultss = self.engine.get_docs_by_ptrs_2(requests=[
+        resultss = self.engine.get_docs_by_ptrs_2_grouped(requests=[
             (
                 [(doc['s'], doc['ptr']) for doc in request['docs']],
                 request['span_ids'],

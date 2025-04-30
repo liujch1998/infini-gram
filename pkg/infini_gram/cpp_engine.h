@@ -1603,7 +1603,7 @@ public:
           _engine_diff(make_unique<Engine<T>>(index_dirs_diff, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs)) {}
 
     // The shape of returned document results is identical to the shape of input requests. Blocked documents are marked and have an empty token_ids.
-    vector<vector<DocResult<T>>> get_docs_by_ptrs_2(const vector<tuple<vector<pair<size_t, U64>>, vector<T>, U64, U64>> requests) const {
+    vector<vector<DocResult<T>>> get_docs_by_ptrs_2_grouped(const vector<tuple<vector<pair<size_t, U64>>, vector<T>, U64, U64>> requests) const {
 
         vector<vector<DocResult<T>>> docs_main_by_request(requests.size());
         vector<vector<DocResult<T>>> docs_diff_by_request(requests.size());

@@ -60,7 +60,7 @@ def main():
     attribution_result = engine.attribute(input_ids=input_ids, delim_ids=delim_ids, min_len=1, max_cnt=1000000, enforce_bow=True)
     spans = attribution_result["spans"]
     for span in spans:
-        span['docs'] = engine.get_docs_by_ptrs_2(requests=[(doc['s'], doc['ptr'], span['length'], 20) for doc in span['docs'][:3]])
+        span['docs'] = engine.get_docs_by_ptrs_2_grouped(requests=[(doc['s'], doc['ptr'], span['length'], 20) for doc in span['docs'][:3]])
 
     print(f'Number of interesting spans: {len(spans)}')
     print('Interesting spans:')
@@ -92,7 +92,7 @@ def main():
 
     attribution_result = engine.attribute(input_ids=input_ids, delim_ids=delim_ids, min_len=1, max_cnt=1000000, enforce_bow=True)
     spans = attribution_result["spans"]
-    docss = engine.get_docs_by_ptrs_2(requests=[{'docs': span['docs'][:3], 'span_ids': input_ids[span['l']:span['r']], 'needle_len': span['length'], 'max_ctx_len': 20} for span in spans])
+    docss = engine.get_docs_by_ptrs_2_grouped(requests=[{'docs': span['docs'][:3], 'span_ids': input_ids[span['l']:span['r']], 'needle_len': span['length'], 'max_ctx_len': 20} for span in spans])
     for span, docs in zip(spans, docss):
         span['docs'] = docs
 

@@ -231,13 +231,13 @@ PYBIND11_MODULE(cpp_engine, m) {
 
     py::class_<EngineDiff<U8>, Engine<U8>>(m, "EngineDiff_U8")
         .def(py::init<const vector<string>, const vector<string>, const U8, const U8, const size_t, const bool, const size_t, const size_t, const size_t, const set<U8>, const size_t, const bool>())
-        .def("get_docs_by_ptrs_2", &EngineDiff<U8>::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a);
+        .def("get_docs_by_ptrs_2_grouped", &EngineDiff<U8>::get_docs_by_ptrs_2_grouped, py::call_guard<py::gil_scoped_release>(), "requests"_a);
 
     py::class_<EngineDiff<U16>, Engine<U16>>(m, "EngineDiff_U16")
         .def(py::init<const vector<string>, const vector<string>, const U16, const U16, const size_t, const bool, const size_t, const size_t, const size_t, const set<U16>, const size_t, const bool>())
-        .def("get_docs_by_ptrs_2", &EngineDiff<U16>::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a);
+        .def("get_docs_by_ptrs_2_grouped", &EngineDiff<U16>::get_docs_by_ptrs_2_grouped, py::call_guard<py::gil_scoped_release>(), "requests"_a);
 
     py::class_<EngineDiff<U32>, Engine<U32>>(m, "EngineDiff_U32")
         .def(py::init<const vector<string>, const vector<string>, const U32, const U32, const size_t, const bool, const size_t, const size_t, const size_t, const set<U32>, const size_t, const bool>())
-        .def("get_docs_by_ptrs_2", &EngineDiff<U32>::get_docs_by_ptrs_2, py::call_guard<py::gil_scoped_release>(), "requests"_a);
+        .def("get_docs_by_ptrs_2_grouped", &EngineDiff<U32>::get_docs_by_ptrs_2_grouped, py::call_guard<py::gil_scoped_release>(), "requests"_a);
 }
