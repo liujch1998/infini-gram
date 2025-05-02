@@ -55,7 +55,6 @@ class Processor:
             **prev_shards_by_index_dir,
             **self.engine.get_new_shards_by_index_dir(),
         }
-        print(config['name'], prev_shards_by_index_dir)
 
     def tokenize(self, query):
         if self.tokenizer_type == 'gpt2':
