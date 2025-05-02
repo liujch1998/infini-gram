@@ -340,9 +340,9 @@ def query():
     log.flush()
 
     index = data['corpus'] if 'corpus' in data else (data['index'] if 'index' in data else None)
-    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2']) and DOLMA_API_URL is not None:
+    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2', 'olmo-mix', 'dclm']) and DOLMA_API_URL is not None:
         try:
-            response = requests.post(DOLMA_API_URL, json=data, timeout=10)
+            response = requests.post(DOLMA_API_URL, json=data, timeout=30)
         except requests.exceptions.Timeout:
             return jsonify({'error': f'[Flask] Web request timed out. Please try again later.'}), 500
         except requests.exceptions.RequestException as e:
