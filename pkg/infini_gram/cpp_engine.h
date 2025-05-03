@@ -622,10 +622,10 @@ public:
                     new_valid_ptr_ranges.push_back({new_l, new_r});
                 } else {
                     if (new_l != (U64)-1 && new_l + max_diff_tokens * sizeof(T) >= l) {
-                        new_valid_ptr_ranges.push_back({new_l, l});
+                        new_valid_ptr_ranges.push_back({new_l, r});
                     }
                     if (new_r != (U64)-1 && new_r <= r + max_diff_tokens * sizeof(T)) {
-                        new_valid_ptr_ranges.push_back({r, new_r});
+                        new_valid_ptr_ranges.push_back({l, new_r});
                     }
                 }
             }
