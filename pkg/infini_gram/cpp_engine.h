@@ -139,7 +139,8 @@ public:
     Engine(
         const vector<string> index_dirs, const T eos_token_id, const T vocab_size, const size_t version,
         const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth,
-        const set<T> bow_ids, const size_t attribution_block_size, const bool precompute_unigram_logprobs)
+        const set<T> bow_ids, const size_t attribution_block_size, const bool precompute_unigram_logprobs,
+        map<string, vector<DatastoreShard>> prev_shards_by_index_dir)
         : _eos_token_id(eos_token_id), _vocab_size(vocab_size), _version(version),
           _load_to_ram(load_to_ram), _ds_prefetch_depth(ds_prefetch_depth), _sa_prefetch_depth(sa_prefetch_depth), _od_prefetch_depth(od_prefetch_depth),
           _bow_ids(bow_ids), _attribution_block_size(attribution_block_size),
@@ -151,6 +152,11 @@ public:
         map<T, U64> unigram_counts;
 
         for (const auto &index_dir : index_dirs) {
+            if (prev_shards_by_index_dir.find(index_dir) != prev_shards_by_index_dir.end()) {
+                _shards.insert(_shards.end(), prev_shards_by_index_dir[index_dir].begin(), prev_shards_by_index_dir[index_dir].end());
+                continue;
+            }
+
             assert (fs::exists(index_dir));
 
             vector<string> ds_paths, sa_paths, od_paths, mt_paths, om_paths, ug_paths;
@@ -205,6 +211,8 @@ public:
                     _shards.push_back(shard);
                 }
 
+                _new_shards_by_index_dir[index_dir].push_back(_shards.back());
+
                 if (precompute_unigram_logprobs) {
                     map<T, U64> shard_unigram_counts;
                     if (ug_paths.size() != 0) { // use cached result
@@ -250,13 +258,15 @@ public:
     }
 
     ~Engine() {
-        for (auto &shard : _shards) {
-            unload_file(shard.ds, shard.ds_size);
-            unload_file(shard.sa, shard.tok_cnt * shard.ptr_size);
-            unload_file(shard.od, shard.doc_cnt * sizeof(U64));
-            if (shard.mt) {
-                unload_file(shard.mt, shard.mt_size);
-                unload_file(shard.om, shard.doc_cnt * sizeof(U64));
+        for (auto &[index_dir, shards] : _new_shards_by_index_dir) {
+            for (auto &shard : shards) {
+                unload_file(shard.ds, shard.ds_size);
+                unload_file(shard.sa, shard.tok_cnt * shard.ptr_size);
+                unload_file(shard.od, shard.doc_cnt * sizeof(U64));
+                if (shard.mt) {
+                    unload_file(shard.mt, shard.mt_size);
+                    unload_file(shard.om, shard.doc_cnt * sizeof(U64));
+                }
             }
         }
     }
@@ -292,6 +302,10 @@ public:
         } else {
             munmap(ptr, size);
         }
+    }
+
+    map<string, vector<DatastoreShard>> get_new_shards_by_index_dir() const {
+        return _new_shards_by_index_dir;
     }
 
     map<T, U64> compute_unigram_counts(const size_t s) const {
@@ -1585,6 +1599,7 @@ private:
     vector<U8> _doc_sep;
     size_t _num_shards;
     vector<DatastoreShard> _shards;
+    map<string, vector<DatastoreShard>> _new_shards_by_index_dir;
     map<T, double> _unigram_logprobs;
 
     friend class EngineDiff<T>;
@@ -1598,9 +1613,10 @@ public:
     EngineDiff(
         const vector<string> index_dirs, const vector<string> index_dirs_diff, const T eos_token_id, const T vocab_size, const size_t version,
         const bool load_to_ram, const size_t ds_prefetch_depth, const size_t sa_prefetch_depth, const size_t od_prefetch_depth,
-        const set<T> bow_ids, const size_t attribution_block_size, const bool precompute_unigram_logprobs)
-        : Engine<T>(index_dirs, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs),
-          _engine_diff(make_unique<Engine<T>>(index_dirs_diff, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs)) {}
+        const set<T> bow_ids, const size_t attribution_block_size, const bool precompute_unigram_logprobs,
+        map<string, vector<DatastoreShard>> prev_shards_by_index_dir)
+        : Engine<T>(index_dirs, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs, prev_shards_by_index_dir),
+          _engine_diff(make_unique<Engine<T>>(index_dirs_diff, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs, prev_shards_by_index_dir)) {}
 
     // The shape of returned document results is identical to the shape of input requests. Blocked documents are marked and have an empty token_ids.
     vector<vector<DocResult<T>>> get_docs_by_ptrs_2_grouped(const vector<tuple<vector<pair<size_t, U64>>, vector<T>, U64, U64>> requests) const {

@@ -1,5 +1,5 @@
 import sys
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple, Dict
 
 from .models import *
 from . import cpp_engine
@@ -9,6 +9,7 @@ class InfiniGramEngine:
     def __init__(self, index_dir: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_dtype='u16',
                  load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
                  bow_ids_path: str = None, attribution_block_size: int = 512, precompute_unigram_logprobs: bool = False,
+                 prev_shards_by_index_dir = {},
                  max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=1000,
                  ) -> None:
 
@@ -55,10 +56,13 @@ class InfiniGramEngine:
             engine_class = cpp_engine.Engine_U32
         else:
             raise ValueError(f'Unsupported token dtype: {token_dtype}')
-        self.engine = engine_class(index_dir, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs)
+        self.engine = engine_class(index_dir, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs, prev_shards_by_index_dir)
 
     def compute_unigram_counts(self, s: int) -> List[int]:
         return self.engine.compute_unigram_counts(s=s)
+
+    def get_new_shards_by_index_dir(self):
+        return self.engine.get_new_shards_by_index_dir()
 
     def check_query_ids(self, query_ids: QueryIdsType, allow_empty: bool) -> bool:
         if not (type(query_ids) == list and (allow_empty or len(query_ids) > 0)):
@@ -418,6 +422,7 @@ class InfiniGramEngineDiff(InfiniGramEngine):
     def __init__(self, index_dir: Iterable[str] | str, index_dir_diff: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_dtype='u16',
                  load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
                  bow_ids_path: str = None, attribution_block_size: int = 512, precompute_unigram_logprobs: bool = False,
+                 prev_shards_by_index_dir = {},
                  max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=1000,
                  ) -> None:
 
@@ -467,7 +472,7 @@ class InfiniGramEngineDiff(InfiniGramEngine):
             engine_class = cpp_engine.EngineDiff_U32
         else:
             raise ValueError(f'Unsupported token dtype: {token_dtype}')
-        self.engine = engine_class(index_dir, index_dir_diff, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs)
+        self.engine = engine_class(index_dir, index_dir_diff, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs, prev_shards_by_index_dir)
 
     def get_docs_by_ptrs_2_grouped(self, requests: List[GetDocsByPtrsRequestWithTakedown]) -> InfiniGramEngineResponse[List[List[DocResult]]]:
         num_shards = self.engine.get_num_shards()

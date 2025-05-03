@@ -22,10 +22,12 @@ args = parser.parse_args()
 
 DOLMA_API_URL = os.environ.get(f'DOLMA_API_URL_{args.MODE.upper()}', None)
 
+prev_shards_by_index_dir = {}
+
 class Processor:
 
     def __init__(self, config):
-        assert 'dir' in config and 'tokenizer' in config
+        assert 'index_dir' in config and 'tokenizer' in config
 
         self.tokenizer_type = config['tokenizer']
         if self.tokenizer_type == 'gpt2':
@@ -39,7 +41,12 @@ class Processor:
         else:
             raise NotImplementedError
 
-        self.engine = InfiniGramEngine(index_dir=config['dir'], eos_token_id=self.tokenizer.eos_token_id, ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0)
+        global prev_shards_by_index_dir
+        self.engine = InfiniGramEngine(index_dir=config['index_dir'], eos_token_id=self.tokenizer.eos_token_id, ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0, prev_shards_by_index_dir=prev_shards_by_index_dir)
+        prev_shards_by_index_dir = {
+            **prev_shards_by_index_dir,
+            **self.engine.get_new_shards_by_index_dir(),
+        }
 
     def tokenize(self, query):
         if self.tokenizer_type == 'gpt2':
@@ -121,7 +128,7 @@ def query():
     log.flush()
 
     index = data['corpus'] if 'corpus' in data else (data['index'] if 'index' in data else None)
-    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2']) and DOLMA_API_URL is not None:
+    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2', 'olmo-mix', 'dclm']) and DOLMA_API_URL is not None:
         try:
             response = requests.post(DOLMA_API_URL, json=data, timeout=30)
         except requests.exceptions.Timeout:
