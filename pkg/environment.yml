@@ -1,6 +1,9 @@
 name: infini-gram-pkg
+channels:
+  - conda-forge
+  - defaults
 dependencies:
-  - python=3.11.8
+  - python=3.12.9
   - pip:
     - pybind11
     - cibuildwheel
