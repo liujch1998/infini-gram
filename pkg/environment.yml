@@ -8,5 +8,8 @@ dependencies:
     - pybind11
     - cibuildwheel
     - twine
+    - zstandard
+    - tqdm
+    - transformers
   - numpy
   - gxx
