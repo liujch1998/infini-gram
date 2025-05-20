@@ -62,9 +62,10 @@ class Processor:
                 query = ' ' + query
             input_ids = self.tokenizer.encode(query)
         elif self.tokenizer_type == 'llama':
-            input_ids = self.tokenizer.encode(query)
-            if len(input_ids) > 0 and input_ids[0] == 29871:
-                input_ids = input_ids[1:]
+            if query.startswith(' '):
+                input_ids = self.tokenizer.encode(query[1:])
+            else:
+                input_ids = self.tokenizer.encode('\n' + query)[2:]
         elif self.tokenizer_type == 'olmo':
             if query != '':
                 query = ' ' + query
@@ -317,6 +318,20 @@ class Processor:
                 spans = new_spans
         spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
         result['spans'] = spans
+        return result
+
+    def get_doc_by_rank_2(self, s, rank, needle_len, max_ctx_len):
+        result = self.engine.get_doc_by_rank_2(s=s, rank=rank, needle_len=needle_len, max_ctx_len=max_ctx_len)
+        if 'error' in result:
+            return result
+        result['text'] = self.tokenizer.decode(result['token_ids'])
+        return result
+
+    def get_doc_by_ptr_2(self, s, ptr, needle_len, max_ctx_len):
+        result = self.engine.get_doc_by_ptr_2(s=s, ptr=ptr, needle_len=needle_len, max_ctx_len=max_ctx_len)
+        if 'error' in result:
+            return result
+        result['text'] = self.tokenizer.decode(result['token_ids'])
         return result
 
 PROCESSOR_BY_INDEX = {}
