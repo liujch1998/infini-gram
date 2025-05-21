@@ -187,25 +187,8 @@ class Processor:
         if 'error' in result:
             return result
 
-        if result['cnt'] == 0:
-            result['message'] = '0 occurrences found'
-        else:
-            result['message'] = f'{"Approximately " if result["approx"] else ""}{result["cnt"]} occurrences found. Displaying the documents of occurrences #{result["idxs"]}'
         for document in result['documents']:
-            token_ids = document['token_ids']
-            spans = [(token_ids, None)]
-            if len(query_ids) > 0:
-                needle = query_ids
-                new_spans = []
-                for span in spans:
-                    if span[1] is not None:
-                        new_spans.append(span)
-                    else:
-                        haystack = span[0]
-                        new_spans += self._replace(haystack, needle, label='0')
-                spans = new_spans
-            spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
-            document['spans'] = spans
+            document['text'] = self.tokenizer.decode(document['token_ids'])
         return result
 
     def search_docs_cnf(self, query_ids, maxnum=None, max_disp_len=None, max_clause_freq=None, max_diff_tokens=None):
@@ -223,26 +206,8 @@ class Processor:
         if 'error' in result:
             return result
 
-        if result['cnt'] == 0:
-            result['message'] = '0 occurrences found'
-        else:
-            result['message'] = f'{"Approximately " if result["approx"] else ""}{result["cnt"]} occurrences found. Displaying the documents of occurrences #{result["idxs"]}'
-        cnf = query_ids
         for document in result['documents']:
-            token_ids = document['token_ids']
-            spans = [(token_ids, None)]
-            for d, clause in enumerate(cnf):
-                for needle in clause:
-                    new_spans = []
-                    for span in spans:
-                        if span[1] is not None:
-                            new_spans.append(span)
-                        else:
-                            haystack = span[0]
-                            new_spans += self._replace(haystack, needle, label=f'{d}')
-                    spans = new_spans
-            spans = [(self.tokenizer.decode(token_ids), d) for (token_ids, d) in spans]
-            document['spans'] = spans
+            document['text'] = self.tokenizer.decode(document['token_ids'])
         return result
 
     def _replace(self, haystack, needle, label):
@@ -345,6 +310,102 @@ if args.LOG_PATH is None:
     args.LOG_PATH = f'/home/ubuntu/logs/flask_{args.MODE}.log'
 log = open(args.LOG_PATH, 'a')
 app = Flask(__name__)
+
+@app.route('/search_docs', methods=['POST'])
+def search_docs():
+    data = request.json
+    print(data)
+    log.write(json.dumps(data) + '\n')
+    log.flush()
+
+    index = data['corpus'] if 'corpus' in data else (data['index'] if 'index' in data else None)
+    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2', 'olmo-mix', 'dclm']) and DOLMA_API_URL is not None:
+        try:
+            response = requests.post(DOLMA_API_URL + '/search_docs', json=data, timeout=30)
+        except requests.exceptions.Timeout:
+            return jsonify({'error': f'[Flask] Web request timed out. Please try again later.'}), 500
+        except requests.exceptions.RequestException as e:
+            return jsonify({'error': f'[Flask] Web request error: {e}'}), 500
+        return jsonify(response.json()), response.status_code
+
+    try:
+        index = data['corpus'] if 'corpus' in data else data['index']
+        for key in ['query_type', 'corpus', 'index', 'engine', 'source', 'timestamp']:
+            if key in data:
+                del data[key]
+        if ('query' not in data and 'query_ids' not in data) or ('query' in data and 'query_ids' in data):
+            return jsonify({'error': f'[Flask] Exactly one of query and query_ids must be present!'}), 400
+        if 'query' in data:
+            query = data['query']
+            query_ids = None
+            del data['query']
+        else:
+            query = None
+            query_ids = data['query_ids']
+            del data['query_ids']
+    except KeyError as e:
+        return jsonify({'error': f'[Flask] Missing required field: {e}'}), 400
+
+    try:
+        processor = PROCESSOR_BY_INDEX[index]
+    except KeyError:
+        return jsonify({'error': f'[Flask] Invalid index: {index}'}), 400
+
+    try:
+        result = processor.process('search_docs', query, query_ids, **data)
+    except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
+        return jsonify({'error': f'[Flask] Internal server error: {e}'}), 500
+    return jsonify(result), 200
+
+@app.route('/search_docs_cnf', methods=['POST'])
+def search_docs_cnf():
+    data = request.json
+    print(data)
+    log.write(json.dumps(data) + '\n')
+    log.flush()
+
+    index = data['corpus'] if 'corpus' in data else (data['index'] if 'index' in data else None)
+    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2', 'olmo-mix', 'dclm']) and DOLMA_API_URL is not None:
+        try:
+            response = requests.post(DOLMA_API_URL + '/search_docs_cnf', json=data, timeout=30)
+        except requests.exceptions.Timeout:
+            return jsonify({'error': f'[Flask] Web request timed out. Please try again later.'}), 500
+        except requests.exceptions.RequestException as e:
+            return jsonify({'error': f'[Flask] Web request error: {e}'}), 500
+        return jsonify(response.json()), response.status_code
+
+    try:
+        index = data['corpus'] if 'corpus' in data else data['index']
+        for key in ['query_type', 'corpus', 'index', 'engine', 'source', 'timestamp']:
+            if key in data:
+                del data[key]
+        if ('query' not in data and 'query_ids' not in data) or ('query' in data and 'query_ids' in data):
+            return jsonify({'error': f'[Flask] Exactly one of query and query_ids must be present!'}), 400
+        if 'query' in data:
+            query = data['query']
+            query_ids = None
+            del data['query']
+        else:
+            query = None
+            query_ids = data['query_ids']
+            del data['query_ids']
+    except KeyError as e:
+        return jsonify({'error': f'[Flask] Missing required field: {e}'}), 400
+
+    try:
+        processor = PROCESSOR_BY_INDEX[index]
+    except KeyError:
+        return jsonify({'error': f'[Flask] Invalid index: {index}'}), 400
+
+    try:
+        result = processor.process('search_docs_cnf', query, query_ids, **data)
+    except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
+        return jsonify({'error': f'[Flask] Internal server error: {e}'}), 500
+    return jsonify(result), 200
 
 @app.route('/', methods=['POST'])
 def query():
