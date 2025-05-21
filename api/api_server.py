@@ -86,16 +86,12 @@ class Processor:
         '''
         # parse query
         if query is not None:
-            if type(query) != str:
-                return {'error': f'query must be a string!'}
-            if len(query) > args.MAX_QUERY_CHARS:
-                return {'error': f'Please limit your input to <= {args.MAX_QUERY_CHARS} characters!'}
-            if not (' AND ' in query or ' OR ' in query): # simple query
+            if type(query) == list and all(type(clause) == list and all(type(term) == str for term in clause) for clause in query):
+                query_ids = [[self.tokenize(term) for term in clause] for clause in query]
+            elif type(query) == str:
                 query_ids = self.tokenize(query)
-            else: # CNF query
-                clauses = query.split(' AND ')
-                termss = [clause.split(' OR ') for clause in clauses]
-                query_ids = [[self.tokenize(term) for term in terms] for terms in termss]
+            else:
+                return {'error': f'query must be a string or a nested list of strings!'}
 
         # validate query_ids
         if type(query_ids) == list and all(type(input_id) == int for input_id in query_ids): # simple query
@@ -285,20 +281,6 @@ class Processor:
         result['spans'] = spans
         return result
 
-    def get_doc_by_rank_2(self, s, rank, needle_len, max_ctx_len):
-        result = self.engine.get_doc_by_rank_2(s=s, rank=rank, needle_len=needle_len, max_ctx_len=max_ctx_len)
-        if 'error' in result:
-            return result
-        result['text'] = self.tokenizer.decode(result['token_ids'])
-        return result
-
-    def get_doc_by_ptr_2(self, s, ptr, needle_len, max_ctx_len):
-        result = self.engine.get_doc_by_ptr_2(s=s, ptr=ptr, needle_len=needle_len, max_ctx_len=max_ctx_len)
-        if 'error' in result:
-            return result
-        result['text'] = self.tokenizer.decode(result['token_ids'])
-        return result
-
 PROCESSOR_BY_INDEX = {}
 with open(args.CONFIG_FILE) as f:
     configs = json.load(f)
@@ -310,102 +292,6 @@ if args.LOG_PATH is None:
     args.LOG_PATH = f'/home/ubuntu/logs/flask_{args.MODE}.log'
 log = open(args.LOG_PATH, 'a')
 app = Flask(__name__)
-
-@app.route('/search_docs', methods=['POST'])
-def search_docs():
-    data = request.json
-    print(data)
-    log.write(json.dumps(data) + '\n')
-    log.flush()
-
-    index = data['corpus'] if 'corpus' in data else (data['index'] if 'index' in data else None)
-    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2', 'olmo-mix', 'dclm']) and DOLMA_API_URL is not None:
-        try:
-            response = requests.post(DOLMA_API_URL + '/search_docs', json=data, timeout=30)
-        except requests.exceptions.Timeout:
-            return jsonify({'error': f'[Flask] Web request timed out. Please try again later.'}), 500
-        except requests.exceptions.RequestException as e:
-            return jsonify({'error': f'[Flask] Web request error: {e}'}), 500
-        return jsonify(response.json()), response.status_code
-
-    try:
-        index = data['corpus'] if 'corpus' in data else data['index']
-        for key in ['query_type', 'corpus', 'index', 'engine', 'source', 'timestamp']:
-            if key in data:
-                del data[key]
-        if ('query' not in data and 'query_ids' not in data) or ('query' in data and 'query_ids' in data):
-            return jsonify({'error': f'[Flask] Exactly one of query and query_ids must be present!'}), 400
-        if 'query' in data:
-            query = data['query']
-            query_ids = None
-            del data['query']
-        else:
-            query = None
-            query_ids = data['query_ids']
-            del data['query_ids']
-    except KeyError as e:
-        return jsonify({'error': f'[Flask] Missing required field: {e}'}), 400
-
-    try:
-        processor = PROCESSOR_BY_INDEX[index]
-    except KeyError:
-        return jsonify({'error': f'[Flask] Invalid index: {index}'}), 400
-
-    try:
-        result = processor.process('search_docs', query, query_ids, **data)
-    except Exception as e:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        traceback.print_exception(exc_type, exc_value, exc_traceback)
-        return jsonify({'error': f'[Flask] Internal server error: {e}'}), 500
-    return jsonify(result), 200
-
-@app.route('/search_docs_cnf', methods=['POST'])
-def search_docs_cnf():
-    data = request.json
-    print(data)
-    log.write(json.dumps(data) + '\n')
-    log.flush()
-
-    index = data['corpus'] if 'corpus' in data else (data['index'] if 'index' in data else None)
-    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2', 'olmo-mix', 'dclm']) and DOLMA_API_URL is not None:
-        try:
-            response = requests.post(DOLMA_API_URL + '/search_docs_cnf', json=data, timeout=30)
-        except requests.exceptions.Timeout:
-            return jsonify({'error': f'[Flask] Web request timed out. Please try again later.'}), 500
-        except requests.exceptions.RequestException as e:
-            return jsonify({'error': f'[Flask] Web request error: {e}'}), 500
-        return jsonify(response.json()), response.status_code
-
-    try:
-        index = data['corpus'] if 'corpus' in data else data['index']
-        for key in ['query_type', 'corpus', 'index', 'engine', 'source', 'timestamp']:
-            if key in data:
-                del data[key]
-        if ('query' not in data and 'query_ids' not in data) or ('query' in data and 'query_ids' in data):
-            return jsonify({'error': f'[Flask] Exactly one of query and query_ids must be present!'}), 400
-        if 'query' in data:
-            query = data['query']
-            query_ids = None
-            del data['query']
-        else:
-            query = None
-            query_ids = data['query_ids']
-            del data['query_ids']
-    except KeyError as e:
-        return jsonify({'error': f'[Flask] Missing required field: {e}'}), 400
-
-    try:
-        processor = PROCESSOR_BY_INDEX[index]
-    except KeyError:
-        return jsonify({'error': f'[Flask] Invalid index: {index}'}), 400
-
-    try:
-        result = processor.process('search_docs_cnf', query, query_ids, **data)
-    except Exception as e:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        traceback.print_exception(exc_type, exc_value, exc_traceback)
-        return jsonify({'error': f'[Flask] Internal server error: {e}'}), 500
-    return jsonify(result), 200
 
 @app.route('/', methods=['POST'])
 def query():
