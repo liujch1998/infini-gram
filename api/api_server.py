@@ -185,6 +185,7 @@ class Processor:
 
         for document in result['documents']:
             document['text'] = self.tokenizer.decode(document['token_ids'])
+            del document['token_ids']
         return result
 
     def search_docs_cnf(self, query_ids, maxnum=None, max_disp_len=None, max_clause_freq=None, max_diff_tokens=None):
@@ -204,6 +205,7 @@ class Processor:
 
         for document in result['documents']:
             document['text'] = self.tokenizer.decode(document['token_ids'])
+            del document['token_ids']
         return result
 
     def _replace(self, haystack, needle, label):
