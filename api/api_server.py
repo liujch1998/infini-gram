@@ -62,9 +62,10 @@ class Processor:
                 query = ' ' + query
             input_ids = self.tokenizer.encode(query)
         elif self.tokenizer_type == 'llama':
-            input_ids = self.tokenizer.encode(query)
-            if len(input_ids) > 0 and input_ids[0] == 29871:
-                input_ids = input_ids[1:]
+            if query.startswith(' '):
+                input_ids = self.tokenizer.encode(query[1:])
+            else:
+                input_ids = self.tokenizer.encode('\n' + query)[2:]
         elif self.tokenizer_type == 'olmo':
             if query != '':
                 query = ' ' + query
@@ -339,7 +340,7 @@ def query():
     log.flush()
 
     index = data['corpus'] if 'corpus' in data else (data['index'] if 'index' in data else None)
-    if any(s in index for s in ['dolma-', 'olmoe', 'olmo-2', 'olmo-mix', 'dclm']) and DOLMA_API_URL is not None:
+    if DOLMA_API_URL is not None:
         try:
             response = requests.post(DOLMA_API_URL, json=data, timeout=30)
         except requests.exceptions.Timeout:
