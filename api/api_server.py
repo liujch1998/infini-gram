@@ -62,10 +62,9 @@ class Processor:
                 query = ' ' + query
             input_ids = self.tokenizer.encode(query)
         elif self.tokenizer_type == 'llama':
-            if query.startswith(' '):
-                input_ids = self.tokenizer.encode(query[1:])
-            else:
-                input_ids = self.tokenizer.encode('\n' + query)[2:]
+            input_ids = self.tokenizer.encode(query)
+            if len(input_ids) > 0 and input_ids[0] == 29871:
+                input_ids = input_ids[1:]
         elif self.tokenizer_type == 'olmo':
             if query != '':
                 query = ' ' + query
