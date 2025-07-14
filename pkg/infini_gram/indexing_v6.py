@@ -283,6 +283,11 @@ def prepare(args):
     else:
         prepare_manyfiles(args)
 
+    ds_path = os.path.join(args.save_dir, f'tokenized')
+    if os.path.getsize(ds_path) == 0:
+        print(f'{ds_path} is empty. Please make sure the documents exist!', flush=True)
+        exit(1)
+
 def build_sa(args):
 
     ds_path = os.path.join(args.save_dir, f'tokenized')
@@ -302,6 +307,9 @@ def build_sa(args):
     start_time = time.time()
 
     ds_size = os.path.getsize(ds_path)
+    if ds_size < args.cpus * args.token_width + args.hack:
+        print(f'{ds_path} is too small to parallelize. Please use fewer CPUs!', flush=True)
+        exit(1)
     ratio = int(np.ceil(np.log2(ds_size) / 8))
     mem_bytes = args.mem * 1024**3
     num_job_batches = 1
@@ -405,12 +413,15 @@ def main():
     assert args.cpus > 0
 
     if args.token_dtype == 'u8':
+        args.token_dtype = np.uint8
         args.token_width = 1
         args.doc_sep = b'\xff'
     elif args.token_dtype == 'u16':
+        args.token_dtype = np.uint16
         args.token_width = 2
         args.doc_sep = b'\xff\xff'
     elif args.token_dtype == 'u32':
+        args.token_dtype = np.uint32
         args.token_width = 4
         args.doc_sep = b'\xff\xff\xff\xff'
     else:

@@ -11,6 +11,10 @@ title: Home
 
 <p align="center">[<a href="https://hf.co/spaces/liujch1998/infini-gram">Web Interface</a>] [<a href="/api_doc">API Endpoint</a>] [<a href="/pkg_doc">Python Package</a>] [<a href="https://infini-gram.readthedocs.io">Docs</a>] [<a href="https://github.com/liujch1998/infini-gram">Code</a>] [<a href="https://arxiv.org/pdf/2401.17377.pdf">Paper</a>]</p>
 
+**[✨NEW]** Check out [**infini-gram mini**](https://infini-gram-mini.io/), a more storage-efficient index based on FM-index, with similar functionalities as infini-gram.
+
+**[✨NEW]** Check out [**OLMoTrace**](https://allenai.org/blog/olmotrace), an LLM behavior tracing tool we developed on top of infini-gram.
+
 <p>Join our <a href="https://discord.gg/wAhjwbjECW">Discord server</a>! Get the latest updates & maintenance announcements, ask the developer anything about infini-gram, and connect with other fellow users.</p>
 
 ---
