@@ -411,9 +411,9 @@ fn cmd_merge(fpath: &String, parts_dir: &String, merged_dir: &String, num_thread
             }
         }
 
-        // Our algorithm is not linear time if there are really long duplicates
-        // found in the merge process. If this happens we'll warn once.
-        let mut did_warn_long_sequences = false;
+        // // Our algorithm is not linear time if there are really long duplicates
+        // // found in the merge process. If this happens we'll warn once.
+        // let mut did_warn_long_sequences = false;
 
         let mut prev = &texts[0][0..];
         while let Some(MergeState {suffix: _suffix, position, table_index, hacksize}) = heap.pop() {
@@ -424,22 +424,22 @@ fn cmd_merge(fpath: &String, parts_dir: &String, merged_dir: &String, num_thread
 
             if idxs[table_index] <= ends[table_index] as u64 {
                 assert!(position != u64::MAX);
-                let next = &texts[table_index][position as usize..];
+                // let next = &texts[table_index][position as usize..];
 
-                let match_len = (0..(hacksize+1)).find(|&j| !(j < next.len() && j < prev.len() && next[j] == prev[j]));
-                if !did_warn_long_sequences {
-                    if let Some(match_len_) = match_len {
-                        if match_len_ >= hacksize {
-                            println!("There is a match longer than {} bytes.", hacksize);
-                            println!("You probably don't want to be using this code on this dataset---it's (possibly) quadratic runtime now.");
-                            did_warn_long_sequences = true;
-                        }
-                    } else {
-                        println!("There is a match longer than {} bytes.", hacksize);
-                        println!("You probably don't want to be using this code on this dataset---it's quadratic runtime now.");
-                        did_warn_long_sequences = true;
-                    }
-                }
+                // let match_len = (0..(hacksize+1)).find(|&j| !(j < next.len() && j < prev.len() && next[j] == prev[j]));
+                // if !did_warn_long_sequences {
+                //     if let Some(match_len_) = match_len {
+                //         if match_len_ >= hacksize {
+                //             println!("There is a match longer than {} bytes.", hacksize);
+                //             println!("You probably don't want to be using this code on this dataset---it's (possibly) quadratic runtime now.");
+                //             did_warn_long_sequences = true;
+                //         }
+                //     } else {
+                //         println!("There is a match longer than {} bytes.", hacksize);
+                //         println!("You probably don't want to be using this code on this dataset---it's quadratic runtime now.");
+                //         did_warn_long_sequences = true;
+                //     }
+                // }
 
                 heap.push(MergeState {
                     suffix: &texts[table_index][position as usize..],
@@ -447,7 +447,7 @@ fn cmd_merge(fpath: &String, parts_dir: &String, merged_dir: &String, num_thread
                     table_index: table_index,
                     hacksize: hacksize
                 });
-                prev = next;
+                // prev = next;
             }
         }
     }

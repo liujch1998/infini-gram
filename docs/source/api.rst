@@ -587,6 +587,8 @@ Then, you can use the ``get_doc_by_rank`` query to retrieve a matching document 
    * - ``query_type``
      - see overview
      - ``get_doc_by_rank``
+   * - ``query`` or ``query_ids``
+     - The same search query as in ``find``
    * - ``s``
      - The shard index
      - An integer in range [0, ``len(segment_by_shard)``)
@@ -727,6 +729,8 @@ Then, you can use the ``get_doc_by_ptr`` query to retrieve a matching document b
    * - ``query_type``
      - see overview
      - ``get_doc_by_ptr``
+   * - ``query`` or ``query_ids``
+     - The same search query as in ``find_cnf``
    * - ``s``
      - The shard index
      - An integer in range [0, ``len(ptrs_by_shard)``)

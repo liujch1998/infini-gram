@@ -137,6 +137,11 @@ def tokenize(args):
                 ug_fout.write(f'{token_id} {count}\n')
             ug_fout.close()
 
+    for ds_path in ds_paths:
+        if os.path.getsize(ds_path) == 0:
+            print(f'{ds_path} is empty. Please make sure the documents exist!', flush=True)
+            exit(1)
+
 def build_sa(args):
 
     ds_paths = [os.path.join(args.save_dir, f'tokenized.{i}') for i in range(args.worker_id, args.shards, args.workers)]
@@ -160,6 +165,9 @@ def build_sa(args):
         start_time = time.time()
 
         ds_size = os.path.getsize(ds_path)
+        if ds_size < args.cpus * args.token_width + HACK:
+            print(f'{ds_path} is too small to parallelize. Please use fewer CPUs!', flush=True)
+            exit(1)
         ratio = int(np.ceil(np.log2(ds_size) / 8))
         mem_bytes = args.mem * 1024**3
         num_job_batches = 1
