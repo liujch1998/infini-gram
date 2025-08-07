@@ -3,8 +3,8 @@
 
 # cibuildwheel --output-dir wheelhouse
 # python -m pip wheel ./pkg --wheel-dir=./build/cp311-macosx_arm64/built_wheel --no-deps
-# twine upload --repository testpypi wheelhouse/*
-# twine upload wheelhouse/*
+# twine upload --repository testpypi -p ${PYPI_TEST_TOKEN} wheelhouse/*
+# twine upload -p ${PYPI_TOKEN} wheelhouse/*
 
 import setuptools
 from setuptools import setup, Extension
@@ -40,7 +40,7 @@ ext_modules = [
 class CustomInstallCommand(install):
     def run(self):
         install.run(self)
-        os.popen(cmd='$HOME/.cargo/bin/cargo build --release').read()
+        os.popen('curl -sSf https://sh.rustup.rs | sh -s -- -y && . "/root/.cargo/env" && cargo build --release').read()
         src = os.path.join('target', 'release', 'rust_indexing')
         dest = os.path.join(self.install_lib, 'infini_gram', 'rust_indexing')
         shutil.copyfile(src, dest)

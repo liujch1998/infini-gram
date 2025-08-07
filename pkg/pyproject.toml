@@ -15,13 +15,7 @@ requires = ["setuptools>=42", "wheel", "pybind11"]
 build-backend = "setuptools.build_meta"
 
 [tool.cibuildwheel]
-build = "cp3*-manylinux* cp3*-macos*"
-
-[tool.cibuildwheel.linux]
-before-build = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env"
-
-[tool.cibuildwheel.macos]
-archs = "x86_64 arm64"
+build = "cp3*-manylinux*"
 
 [[tool.cibuildwheel.overrides]]
 select = "*macosx_x86_64"
