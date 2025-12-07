@@ -1,31 +1,37 @@
 [
     {
         "name": "v4_pileval_llama",
+        "s3_names": ["v4_pileval_llama"],
         "index_dir": "/data-v4-pileval-llama/v4_pileval_llama",
         "tokenizer": "llama"
     },
     {
         "name": "v4_c4train_llama",
+        "s3_names": ["v4_c4train_llama"],
         "index_dir": "/data-v4-c4train-llama/v4_c4train_llama",
         "tokenizer": "llama"
     },
     {
         "name": "v4_piletrain_llama",
+        "s3_names": ["v4_piletrain_llama"],
         "index_dir": "/data-v4-piletrain-llama/v4_piletrain_llama",
         "tokenizer": "llama"
     },
     {
         "name": "v4_rpj_llama_s4",
+        "s3_names": ["v4_rpj_llama_s4"],
         "index_dir": "/data-v4-rpj-llama-s4/v4_rpj_llama_s4",
         "tokenizer": "llama"
     },
     {
         "name": "v4_dolma-v1_6-sample_llama",
+        "s3_names": ["v4_dolma-v1_6-sample_llama"],
         "index_dir": "/data-v4-dolma-v1_6-sample-llama/v4_dolma-v1_6-sample_llama",
         "tokenizer": "llama"
     },
     {
         "name": "v4_dolma-v1_7_llama",
+        "s3_names": ["v4_dolma-v1_7_llama"],
         "index_dir": [
             "/data-v4-dolma-v1_7-s0-llama/v4_dolma-v1_7-s0_llama",
             "/data-v4-dolma-v1_7-s1-llama/v4_dolma-v1_7-s1_llama"
@@ -34,6 +40,7 @@
     },
     {
         "name": "v4_dclm-baseline_llama",
+        "s3_names": ["v4_olmoe-mix-0924-dclm_llama"],
         "index_dir": [
             "/data-v4-olmoe-mix-0924-dclm-s0-llama/v4_olmoe-mix-0924-dclm-s0_llama",
             "/data-v4-olmoe-mix-0924-dclm-s1-llama/v4_olmoe-mix-0924-dclm-s1_llama",
@@ -43,6 +50,7 @@
     },
     {
         "name": "v4_olmo-mix-1124_llama",
+        "s3_names": ["v4_olmoe-mix-0924-dclm_llama", "v4_olmoe-mix-0924-nodclm_llama"],
         "index_dir": [
             "/data-v4-olmoe-mix-0924-dclm-s0-llama/v4_olmoe-mix-0924-dclm-s0_llama",
             "/data-v4-olmoe-mix-0924-dclm-s1-llama/v4_olmoe-mix-0924-dclm-s1_llama",
@@ -53,6 +61,7 @@
     },
     {
         "name": "v4_dolmino-mix-1124-minus-olmo-mix-1124_llama",
+        "s3_names": ["v4_dolmino-mix-1124-minus-olmo-mix-1124_llama"],
         "index_dir": [
             "/data-v4-dolmino-mix-1124-minus-olmo-mix-1124-llama/v4_dolminoi-mix-1124-minus-olmo-mix-1124_llama"
         ],
@@ -60,6 +69,7 @@
     },
     {
         "name": "v4_olmo-2-0325-32b-instruct_llama",
+        "s3_names": ["v4_olmoe-mix-0924-dclm_llama", "v4_olmoe-mix-0924-nodclm_llama", "v4_olmo-2-0325-32b-anneal-adapt_llama"],
         "index_dir": [
             "/data-v4-olmoe-mix-0924-dclm-s0-llama/v4_olmoe-mix-0924-dclm-s0_llama",
             "/data-v4-olmoe-mix-0924-dclm-s1-llama/v4_olmoe-mix-0924-dclm-s1_llama",
@@ -71,6 +81,7 @@
     },
     {
         "name": "v4_olmo-2-1124-13b-instruct_llama",
+        "s3_names": ["v4_olmoe-mix-0924-dclm_llama", "v4_olmoe-mix-0924-nodclm_llama", "v4_olmo-2-1124-13b-anneal-adapt_llama"],
         "index_dir": [
             "/data-v4-olmoe-mix-0924-dclm-s0-llama/v4_olmoe-mix-0924-dclm-s0_llama",
             "/data-v4-olmoe-mix-0924-dclm-s1-llama/v4_olmoe-mix-0924-dclm-s1_llama",
@@ -82,6 +93,7 @@
     },
     {
         "name": "v4_olmoe-0125-1b-7b-instruct_llama",
+        "s3_names": ["v4_olmoe-mix-0924-dclm_llama", "v4_olmoe-mix-0924-nodclm_llama", "v4_olmoe-0125-1b-7b-anneal-adapt_llama"],
         "index_dir": [
             "/data-v4-olmoe-mix-0924-dclm-s0-llama/v4_olmoe-mix-0924-dclm-s0_llama",
             "/data-v4-olmoe-mix-0924-dclm-s1-llama/v4_olmoe-mix-0924-dclm-s1_llama",

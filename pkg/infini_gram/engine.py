@@ -7,7 +7,8 @@ from . import py_engine
 
 class InfiniGramEngine:
 
-    def __init__(self, index_dir: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_dtype='u16',
+    def __init__(self,
+                 s3_names: Iterable[str], index_dir: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_dtype='u16',
                  load_to_ram=False, ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0,
                  bow_ids_path: str = None, attribution_block_size: int = 512, precompute_unigram_logprobs: bool = False,
                  prev_shards_by_index_dir = {},
@@ -17,6 +18,7 @@ class InfiniGramEngine:
 
         assert sys.byteorder == 'little', 'This code is designed to run on little-endian machines only!'
 
+        assert type(s3_names) == list and all(type(d) == str for d in s3_names)
         if type(index_dir) == str:
             index_dir = [index_dir]
         assert type(index_dir) == list and all(type(d) == str for d in index_dir)
@@ -65,7 +67,7 @@ class InfiniGramEngine:
         if read_type == 'mmap':
             self.engine = engine_class(index_dir, eos_token_id, vocab_size, version, load_to_ram, ds_prefetch_depth, sa_prefetch_depth, od_prefetch_depth, bow_ids, attribution_block_size, precompute_unigram_logprobs, prev_shards_by_index_dir)
         elif read_type == 's3':
-            self.engine = py_engine.Engine(token_width=self.token_width, index_dirs=index_dir, eos_token_id=eos_token_id, vocab_size=vocab_size, version=version)
+            self.engine = py_engine.Engine(token_width=self.token_width, s3_names=s3_names, eos_token_id=eos_token_id, vocab_size=vocab_size, version=version)
         else:
             raise ValueError(f'Unsupported read type: {read_type}')
 

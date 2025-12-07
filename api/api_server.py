@@ -80,6 +80,7 @@ class Processor:
 
         global prev_shards_by_index_dir
         self.engine = InfiniGramEngine(
+            s3_names=config['s3_names'],
             index_dir=config['index_dir'],
             eos_token_id=self.tokenizer.eos_token_id,
             vocab_size=self.tokenizer.vocab_size,
