@@ -7,7 +7,7 @@ from . import cpp_engine
 class InfiniGramEngine:
 
     def __init__(self, index_dir: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_dtype='u16',
-                 load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
+                 load_to_ram=False, ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0,
                  bow_ids_path: str = None, attribution_block_size: int = 512, precompute_unigram_logprobs: bool = False,
                  prev_shards_by_index_dir = {},
                  max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=1000,
@@ -47,12 +47,15 @@ class InfiniGramEngine:
 
         if token_dtype == 'u8':
             self.token_id_max = 2**8 - 1
+            self.token_width = 1
             engine_class = cpp_engine.Engine_U8
         elif token_dtype == 'u16':
             self.token_id_max = 2**16 - 1
+            self.token_width = 2
             engine_class = cpp_engine.Engine_U16
         elif token_dtype == 'u32':
             self.token_id_max = 2**32 - 1
+            self.token_width = 4
             engine_class = cpp_engine.Engine_U32
         else:
             raise ValueError(f'Unsupported token dtype: {token_dtype}')
@@ -216,7 +219,7 @@ class InfiniGramEngine:
             return {'error': f's must be an integer in range [0, {num_shards})'}
         tok_cnt = self.engine.get_tok_cnt(s=s)
         if not (type(rank) == int and 0 <= rank and rank < tok_cnt):
-            return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
+            return {'error': f'rank must be an integer in range [0, {tok_cnt})'}
 
         result = self.engine.get_doc_by_rank(s=s, rank=rank, max_disp_len=max_disp_len)
         return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
@@ -232,9 +235,9 @@ class InfiniGramEngine:
                 return {'error': f's must be an integer in range [0, {num_shards})'}
             tok_cnt = self.engine.get_tok_cnt(s=s)
             if not (type(rank) == int and 0 <= rank and rank < tok_cnt):
-                return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
+                return {'error': f'rank must be an integer in range [0, {tok_cnt})'}
 
-        results = self.engine.get_docs_by_rank(list_of_s_and_rank=list_of_s_and_rank, max_disp_len=max_disp_len)
+        results = self.engine.get_docs_by_ranks(list_of_s_and_rank=list_of_s_and_rank, max_disp_len=max_disp_len)
         return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
 
     def get_doc_by_ptr(self, s: int, ptr: int, max_disp_len: Optional[int] = None) -> InfiniGramEngineResponse[DocResult]:
@@ -246,8 +249,8 @@ class InfiniGramEngine:
         if not (type(s) == int and 0 <= s and s < num_shards):
             return {'error': f's must be an integer in range [0, {num_shards})'}
         ds_size = self.engine.get_ds_size(s=s)
-        if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % 2 == 0):
-            return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
+        if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % self.token_width == 0):
+            return {'error': f'ptr must be an integer in range [0, {ds_size}) and a multiple of {self.token_width}'}
 
         result = self.engine.get_doc_by_ptr(s=s, ptr=ptr, max_disp_len=max_disp_len)
         return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
@@ -262,8 +265,8 @@ class InfiniGramEngine:
             if not (type(s) == int and 0 <= s and s < num_shards):
                 return {'error': f's must be an integer in range [0, {num_shards})'}
             ds_size = self.engine.get_ds_size(s=s)
-            if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % 2 == 0):
-                return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
+            if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % self.token_width == 0):
+                return {'error': f'ptr must be an integer in range [0, {ds_size}) and a multiple of {self.token_width}'}
 
         results = self.engine.get_docs_by_ptrs(list_of_s_and_ptr=list_of_s_and_ptr, max_disp_len=max_disp_len)
         return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
@@ -303,7 +306,7 @@ class InfiniGramEngine:
             return {'error': f's must be an integer in range [0, {num_shards})'}
         tok_cnt = self.engine.get_tok_cnt(s=s)
         if not (type(rank) == int and 0 <= rank and rank < tok_cnt):
-            return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
+            return {'error': f'rank must be an integer in range [0, {tok_cnt})'}
 
         result = self.engine.get_doc_by_rank_2(s=s, rank=rank, needle_len=needle_len, max_ctx_len=max_ctx_len)
         return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
@@ -319,7 +322,7 @@ class InfiniGramEngine:
                 return {'error': f's must be an integer in range [0, {num_shards})'}
             tok_cnt = self.engine.get_tok_cnt(s=s)
             if not (type(rank) == int and 0 <= rank and rank < tok_cnt):
-                return {'error': f'ptr must be an integer in range [0, {tok_cnt})'}
+                return {'error': f'rank must be an integer in range [0, {tok_cnt})'}
 
         results = self.engine.get_docs_by_ranks_2(requests=requests)
         return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
@@ -333,8 +336,8 @@ class InfiniGramEngine:
         if not (type(s) == int and 0 <= s and s < num_shards):
             return {'error': f's must be an integer in range [0, {num_shards})'}
         ds_size = self.engine.get_ds_size(s=s)
-        if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % 2 == 0):
-            return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
+        if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % self.token_width == 0):
+            return {'error': f'ptr must be an integer in range [0, {ds_size}) and a multiple of {self.token_width}'}
 
         result = self.engine.get_doc_by_ptr_2(s=s, ptr=ptr, needle_len=needle_len, max_ctx_len=max_ctx_len)
         return {'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked}
@@ -349,8 +352,8 @@ class InfiniGramEngine:
             if not (type(s) == int and 0 <= s and s < num_shards):
                 return {'error': f's must be an integer in range [0, {num_shards})'}
             ds_size = self.engine.get_ds_size(s=s)
-            if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % 2 == 0):
-                return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
+            if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % self.token_width == 0):
+                return {'error': f'ptr must be an integer in range [0, {ds_size}) and a multiple of {self.token_width}'}
 
         results = self.engine.get_docs_by_ptrs_2(requests=requests)
         return [{'doc_ix': result.doc_ix, 'doc_len': result.doc_len, 'disp_len': result.disp_len, 'needle_offset': result.needle_offset, 'metadata': result.metadata, 'token_ids': result.token_ids, 'blocked': result.blocked} for result in results]
@@ -420,7 +423,7 @@ class InfiniGramEngine:
 class InfiniGramEngineDiff(InfiniGramEngine):
 
     def __init__(self, index_dir: Iterable[str] | str, index_dir_diff: Iterable[str] | str, eos_token_id: int, vocab_size=65535, version=4, token_dtype='u16',
-                 load_to_ram=False, ds_prefetch_depth=1, sa_prefetch_depth=3, od_prefetch_depth=3,
+                 load_to_ram=False, ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0,
                  bow_ids_path: str = None, attribution_block_size: int = 512, precompute_unigram_logprobs: bool = False,
                  prev_shards_by_index_dir = {},
                  max_support=1000, max_clause_freq=50000, max_diff_tokens=100, maxnum=1, max_disp_len=1000,
@@ -489,8 +492,8 @@ class InfiniGramEngineDiff(InfiniGramEngine):
                 if not (type(s) == int and 0 <= s and s < num_shards):
                     return {'error': f's must be an integer in range [0, {num_shards})'}
                 ds_size = self.engine.get_ds_size(s=s)
-                if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % 2 == 0):
-                    return {'error': f'ptr must be an even integer in range [0, {ds_size})'}
+                if not (type(ptr) == int and 0 <= ptr and ptr < ds_size and ptr % self.token_width == 0):
+                    return {'error': f'ptr must be an integer in range [0, {ds_size}) and a multiple of {self.token_width}'}
 
         resultss = self.engine.get_docs_by_ptrs_2_grouped(requests=[
             (
