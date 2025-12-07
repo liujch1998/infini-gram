@@ -30,6 +30,32 @@ args = parser.parse_args()
 
 DOLMA_API_URL = os.environ.get(f'DOLMA_API_URL_{args.MODE.upper()}', None)
 
+class ByteTokenizer:
+    def __init__(self):
+        self.vocab_size = 255
+        self.eos_token_id = 0
+
+    def encode(self, text):
+        ids = []
+        pos = 0
+        while pos < len(text):
+            if pos + 4 <= len(text) and text[pos:pos+2] == "\\x" and text[pos+2] in '0123456789abcdefABCDEF' and text[pos+3] in '0123456789abcdefABCDEF':
+                ids.append(int(text[pos+2:pos+4], base=16))
+                pos += 4
+            else:
+                ids += [int(b) for b in text[pos].encode('utf-8')]
+                pos += 1
+        return ids
+
+    def decode(self, ids: list[int], skip_special_tokens=False, clean_up_tokenization_spaces=False) -> str:
+        s = bytes(ids).decode('utf-8', errors='backslashreplace')
+        s = ''.join([f'\\x{ord(c):02x}' if ord(c) < 32 and ord(c) not in [9, 10] else c for c in s])  # escape control characters
+        return s
+
+    def convert_ids_to_tokens(self, ids: list[int]) -> list[str]:
+        # convert each intege (0-255) to a str representing the corresponding byte, e.g. 255 -> '\xff'
+        return [chr(id) for id in ids]
+
 prev_shards_by_index_dir = {}
 
 class Processor:
@@ -38,7 +64,9 @@ class Processor:
         assert 'index_dir' in config and 'tokenizer' in config
 
         self.tokenizer_type = config['tokenizer']
-        if self.tokenizer_type == 'gpt2':
+        if self.tokenizer_type is None:
+            self.tokenizer = ByteTokenizer()
+        elif self.tokenizer_type == 'gpt2':
             self.tokenizer = AutoTokenizer.from_pretrained('gpt2', add_bos_token=False, add_eos_token=False)
         elif self.tokenizer_type == 'llama':
             self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", add_bos_token=False, add_eos_token=False)
@@ -50,14 +78,25 @@ class Processor:
             raise NotImplementedError
 
         global prev_shards_by_index_dir
-        self.engine = InfiniGramEngine(index_dir=config['index_dir'], eos_token_id=self.tokenizer.eos_token_id, ds_prefetch_depth=0, sa_prefetch_depth=0, od_prefetch_depth=0, prev_shards_by_index_dir=prev_shards_by_index_dir)
+        self.engine = InfiniGramEngine(
+            index_dir=config['index_dir'],
+            eos_token_id=self.tokenizer.eos_token_id,
+            vocab_size=self.tokenizer.vocab_size,
+            token_dtype=config.get('token_dtype', 'u16'),
+            ds_prefetch_depth=0,
+            sa_prefetch_depth=0,
+            od_prefetch_depth=0,
+            prev_shards_by_index_dir=prev_shards_by_index_dir,
+        )
         prev_shards_by_index_dir = {
             **prev_shards_by_index_dir,
             **self.engine.get_new_shards_by_index_dir(),
         }
 
     def tokenize(self, query):
-        if self.tokenizer_type == 'gpt2':
+        if self.tokenizer_type is None:
+            input_ids = self.tokenizer.encode(query)
+        elif self.tokenizer_type == 'gpt2':
             if query != '':
                 query = ' ' + query
             input_ids = self.tokenizer.encode(query)
@@ -330,6 +369,10 @@ if args.LOG_PATH is None:
     args.LOG_PATH = f'/home/ubuntu/logs/flask_{args.MODE}.log'
 log = open(args.LOG_PATH, 'a')
 app = Flask(__name__)
+
+@app.route('/', methods=['GET'])
+def get_available_indexes():
+    return jsonify(list(PROCESSOR_BY_INDEX.keys())), 200
 
 @app.route('/', methods=['POST'])
 def query():
