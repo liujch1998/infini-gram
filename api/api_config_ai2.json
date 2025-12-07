@@ -2,6 +2,7 @@
     {
         "name": "olmo-3-32b-think",
         "desc": "OLMo 3 32B Think",
+        "read_type": "s3",
         "s3_names": [
             "dolma2-0625-v01/00",
             "dolma2-0625-v01/01",
@@ -38,6 +39,7 @@
     {
         "name": "olmo-3-7b-think",
         "desc": "OLMo 3 7B Think",
+        "read_type": "s3",
         "s3_names": [
             "dolma2-0625-v01/",
             "dolma3-dolmino-official-100B",
@@ -50,6 +52,7 @@
     {
         "name": "olmo-3-7b-instruct",
         "desc": "OLMo 3 7B Instruct",
+        "read_type": "s3",
         "s3_names": [
             "dolma2-0625-v01/",
             "dolma3-dolmino-official-100B",
@@ -62,6 +65,7 @@
     {
         "name": "dolma3",
         "desc": "Dolma 3",
+        "read_type": "s3",
         "s3_names": [
             "dolma2-0625-v01/"
         ],

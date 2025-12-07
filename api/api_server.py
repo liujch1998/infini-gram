@@ -15,7 +15,6 @@ parser.add_argument('--MODE', type=str, default='api', choices=['api', 'dev', 'd
 parser.add_argument('--FLASK_PORT', type=int, default=5000)
 parser.add_argument('--CONFIG_FILE', type=str, default='api_config.json')
 parser.add_argument('--LOG_PATH', type=str, default=None)
-parser.add_argument('--READ_TYPE', type=str, default='mmap', choices=['mmap', 's3'])
 # API limits
 parser.add_argument('--MAX_QUERY_CHARS', type=int, default=1000)
 parser.add_argument('--MAX_QUERY_TOKENS', type=int, default=500)
@@ -91,9 +90,9 @@ class Processor:
             sa_prefetch_depth=0,
             od_prefetch_depth=0,
             prev_shards_by_index_dir=prev_shards_by_index_dir,
-            read_type=args.READ_TYPE,
+            read_type=config.get('read_type', 'mmap'),
         )
-        if args.READ_TYPE == 'mmap':
+        if config.get('read_type', 'mmap') == 'mmap':
             prev_shards_by_index_dir = {
                 **prev_shards_by_index_dir,
                 **self.engine.get_new_shards_by_index_dir(),
