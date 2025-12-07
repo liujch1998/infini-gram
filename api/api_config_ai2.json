@@ -1,5 +1,75 @@
 [
     {
+        "name": "olmo-3-32b-think",
+        "desc": "OLMo 3 32B Think",
+        "s3_names": [
+            "dolma2-0625-v01/00",
+            "dolma2-0625-v01/01",
+            "dolma2-0625-v01/02",
+            "dolma2-0625-v01/03",
+            "dolma2-0625-v01/04",
+            "dolma2-0625-v01/05",
+            "dolma2-0625-v01/06",
+            "dolma2-0625-v01/07",
+            "dolma2-0625-v01/08",
+            "dolma2-0625-v01/09",
+            "dolma2-0625-v01/10",
+            "dolma2-0625-v01/11",
+            "dolma2-0625-v01/12",
+            "dolma2-0625-v01/13",
+            "dolma2-0625-v01/14",
+            "dolma2-0625-v01/15",
+            "dolma2-0625-v01/16",
+            "dolma2-0625-v01/17",
+            "dolma2-0625-v01/18",
+            "dolma2-0625-v02/19",
+            "dolma2-0625-v02/20",
+            "dolma2-0625-v02/21",
+            "dolma2-0625-v02/22",
+            "dolma2-0625-v02/23",
+            "dolma2-0625-v02/24",
+            "dolma3-dolmino-official-100B",
+            "dolci/Dolci-Think-SFT-32B"
+        ],
+        "index_dir": [],
+        "tokenizer": "olmo2",
+        "token_dtype": "u32"
+    },
+    {
+        "name": "olmo-3-7b-think",
+        "desc": "OLMo 3 7B Think",
+        "s3_names": [
+            "dolma2-0625-v01/",
+            "dolma3-dolmino-official-100B",
+            "dolci/Dolci-Think-SFT-7B"
+        ],
+        "index_dir": [],
+        "tokenizer": "olmo2",
+        "token_dtype": "u32"
+    },
+    {
+        "name": "olmo-3-7b-instruct",
+        "desc": "OLMo 3 7B Instruct",
+        "s3_names": [
+            "dolma2-0625-v01/",
+            "dolma3-dolmino-official-100B",
+            "dolci/Dolci-Instruct-SFT-7B"
+        ],
+        "index_dir": [],
+        "tokenizer": "olmo2",
+        "token_dtype": "u32"
+    },
+    {
+        "name": "dolma3",
+        "desc": "Dolma 3",
+        "s3_names": [
+            "dolma2-0625-v01/"
+        ],
+        "index_dir": [],
+        "tokenizer": "olmo2",
+        "token_dtype": "u32"
+    },
+    {
         "name": "v4_olmo-2-0325-32b-instruct_llama",
         "desc": "OLMo 2 32B Instruct (4.6T tokens)",
         "s3_names": [

@@ -75,6 +75,8 @@ class Processor:
             self.tokenizer = AutoTokenizer.from_pretrained("allenai/OLMo-7B-hf", add_bos_token=False, add_eos_token=False)
         elif self.tokenizer_type == 'gptneox':
             self.tokenizer = AutoTokenizer.from_pretrained('EleutherAI/pythia-6.9b', add_bos_token=False, add_eos_token=False)
+        elif self.tokenizer_type == 'olmo2':
+            self.tokenizer = AutoTokenizer.from_pretrained("allenai/OLMo-2-1124-7B-Instruct", add_bos_token=False, add_eos_token=False)
         else:
             raise NotImplementedError
 
@@ -113,6 +115,10 @@ class Processor:
                 query = ' ' + query
             input_ids = self.tokenizer.encode(query)
         elif self.tokenizer_type == 'gptneox':
+            if query != '':
+                query = ' ' + query
+            input_ids = self.tokenizer.encode(query)
+        elif self.tokenizer_type == 'olmo2':
             if query != '':
                 query = ' ' + query
             input_ids = self.tokenizer.encode(query)
@@ -374,7 +380,7 @@ if args.LOG_PATH is None:
 log = open(args.LOG_PATH, 'a')
 app = Flask(__name__)
 
-@app.route('/demo_indexes', methods=['GET'])
+@app.route('/', methods=['GET'])
 def get_demo_indexes():
     demo_indexes = []
     for index, config in config_by_index.items():
