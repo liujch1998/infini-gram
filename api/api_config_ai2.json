@@ -1,6 +1,6 @@
 [
     {
-        "name": "olmo-3-32b-think",
+        "name": "v4_olmo-3-32b-think_olmo2",
         "desc": "OLMo 3 32B Think",
         "read_type": "s3",
         "s3_names": [
@@ -37,7 +37,7 @@
         "token_dtype": "u32"
     },
     {
-        "name": "olmo-3-7b-think",
+        "name": "v4_olmo-3-7b-think_olmo2",
         "desc": "OLMo 3 7B Think",
         "read_type": "s3",
         "s3_names": [
@@ -50,24 +50,13 @@
         "token_dtype": "u32"
     },
     {
-        "name": "olmo-3-7b-instruct",
+        "name": "v4_olmo-3-7b-instruct_olmo2",
         "desc": "OLMo 3 7B Instruct",
         "read_type": "s3",
         "s3_names": [
             "dolma2-0625-v01/",
             "dolma3-dolmino-official-100B",
             "dolci/Dolci-Instruct-SFT-7B"
-        ],
-        "index_dir": [],
-        "tokenizer": "olmo2",
-        "token_dtype": "u32"
-    },
-    {
-        "name": "dolma3",
-        "desc": "Dolma 3",
-        "read_type": "s3",
-        "s3_names": [
-            "dolma2-0625-v01/"
         ],
         "index_dir": [],
         "tokenizer": "olmo2",
