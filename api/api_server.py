@@ -362,11 +362,11 @@ class Processor:
         result['spans'] = spans
         return result
 
-PROCESSOR_BY_INDEX = {}
 with open(args.CONFIG_FILE) as f:
     configs = json.load(f)
-    for config in configs:
-        PROCESSOR_BY_INDEX[config['name']] = Processor(config)
+    config_by_index = {config['name']: config for config in configs}
+    for index, config in config_by_index.items():
+        config['processor'] = Processor(config)
 
 # save log under home directory
 if args.LOG_PATH is None:
@@ -374,9 +374,16 @@ if args.LOG_PATH is None:
 log = open(args.LOG_PATH, 'a')
 app = Flask(__name__)
 
-@app.route('/', methods=['GET'])
-def get_available_indexes():
-    return jsonify(list(PROCESSOR_BY_INDEX.keys())), 200
+@app.route('/demo_indexes', methods=['GET'])
+def get_demo_indexes():
+    demo_indexes = []
+    for index, config in config_by_index.items():
+        if 'desc' in config:
+            demo_indexes.append({
+                'index': index,
+                'desc': config['desc'],
+            })
+    return jsonify(demo_indexes), 200
 
 @app.route('/', methods=['POST'])
 def query():
@@ -415,7 +422,7 @@ def query():
         return jsonify({'error': f'[Flask] Missing required field: {e}'}), 400
 
     try:
-        processor = PROCESSOR_BY_INDEX[index]
+        processor = config_by_index[index]['processor']
     except KeyError:
         return jsonify({'error': f'[Flask] Invalid index: {index}'}), 400
     if not hasattr(processor.engine, query_type):
