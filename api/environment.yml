@@ -8,4 +8,5 @@ dependencies:
     - transformers==4.40.2
     - flask
     - pybind11
+    - boto3
     # compile C++ module
