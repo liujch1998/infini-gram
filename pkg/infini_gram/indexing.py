@@ -151,7 +151,9 @@ def build_sa(args):
     for t, ds_path in enumerate(ds_paths):
         print(f'Shard {t} / {len(ds_paths)}', flush=True)
 
-        sa_path = ds_path.replace('tokenized', 'table')
+        head, tail = os.path.split(ds_path)
+        sa_path = os.path.join(head, tail.replace('tokenized', 'table'))
+
         if os.path.exists(sa_path):
             print(f'Step 2 (build_sa): Skipped. File already exists.', flush=True)
             continue
