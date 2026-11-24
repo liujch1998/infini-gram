@@ -181,6 +181,10 @@ def build_sa(args):
         # Make sure that parts contain whole tokens
         if S % args.token_width != 0:
             S += args.token_width - S % args.token_width
+        # The merge step assumes every part except the last one is exactly S + hack bytes long
+        if (total_jobs - 1) * S + HACK > ds_size:
+            print(f'{ds_path} is too small to split into {total_jobs} parts. Please use fewer CPUs!', flush=True)
+            exit(1)
 
         parts_dir = os.path.join(args.temp_dir, f'parts-{args.worker_id}')
         shutil.rmtree(parts_dir, ignore_errors=True)
